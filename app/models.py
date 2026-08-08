@@ -21,7 +21,7 @@ from sqlalchemy import (
     DateTime,
     Enum as SAEnum,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -30,6 +30,11 @@ from app.database import Base
 class TipoMovimentacao(str, enum.Enum):
     RECEITA = "receita"
     DESPESA = "despesa"
+
+
+class TipoRelatorio(str, enum.Enum):
+    AUTOMATICO_SEMANAL = "automatico_semanal"
+    AUTOMATICO_MENSAL = "automatico_mensal"
 
 
 class Usuario(Base):
@@ -109,3 +114,27 @@ class Movimentacao(Base):
 
     def __repr__(self) -> str:
         return f"<Movimentacao id={self.id} valor={self.valor} categoria_id={self.categoria_id}>"
+
+
+class Relatorio(Base):
+    """Snapshot de um relatório automático (semanal/mensal), gerado pelo
+    scheduler. Guarda o resultado já calculado (campo `dados`) para não
+    precisar reprocessar — e para preservar o retrato daquele período mesmo
+    que o usuário edite/apague movimentações depois."""
+
+    __tablename__ = "relatorios"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    usuario_id = Column(
+        UUID(as_uuid=True), ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+    )
+    tipo = Column(SAEnum(TipoRelatorio, name="tipo_relatorio", values_callable=lambda e: [x.value for x in e]), nullable=False)
+    data_inicio = Column(Date, nullable=False)
+    data_fim = Column(Date, nullable=False)
+    dados = Column(JSONB, nullable=False)
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    usuario = relationship("Usuario")
+
+    def __repr__(self) -> str:
+        return f"<Relatorio id={self.id} tipo={self.tipo} periodo={self.data_inicio}..{self.data_fim}>"

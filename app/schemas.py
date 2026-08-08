@@ -7,11 +7,11 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, EmailStr, ConfigDict, Field
 
-from app.models import TipoMovimentacao
+from app.models import TipoMovimentacao, TipoRelatorio
 
 
 class OrdenarPor(str, Enum):
@@ -128,3 +128,20 @@ class SaldoOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+# ---------- Relatórios ----------
+
+class RelatorioOut(BaseModel):
+    """Relatório automático salvo (semanal/mensal). O conteúdo em si
+    (histórico, saldo, dados de gráfico) fica em `dados` — o formato varia
+    pouco entre execuções, então mantemos como dict em vez de um schema
+    rígido por campo."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tipo: TipoRelatorio
+    data_inicio: date
+    data_fim: date
+    dados: Dict[str, Any]
+    criado_em: datetime

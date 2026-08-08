@@ -9,43 +9,8 @@ const estado = {
   filtros: {},
 };
 
-// ---------- Utilidades ----------
-
-const formatadorMoeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-
-function formatarMoeda(valor) {
-  return formatadorMoeda.format(Number(valor));
-}
-
-function formatarDataBR(isoDate) {
-  const [ano, mes, dia] = isoDate.split("-");
-  return `${dia}/${mes}/${ano}`;
-}
-
-function hojeISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function mostrarErro(elementoId, mensagem) {
-  const el = document.getElementById(elementoId);
-  el.textContent = mensagem;
-  el.classList.add("is-visivel");
-}
-
-function limparErro(elementoId) {
-  const el = document.getElementById(elementoId);
-  el.textContent = "";
-  el.classList.remove("is-visivel");
-}
-
-function toast(mensagem, tipo = "sucesso") {
-  const regiao = document.getElementById("regiao-toast");
-  const el = document.createElement("div");
-  el.className = "toast" + (tipo === "erro" ? " toast--erro" : "");
-  el.textContent = mensagem;
-  regiao.appendChild(el);
-  setTimeout(() => el.remove(), 4000);
-}
+// Utilidades (formatarMoeda, formatarDataBR, hojeISO, escaparHtml, toast,
+// mostrarErro, limparErro) vêm de js/utils.js, carregado antes deste arquivo.
 
 function categoriaPorId(id) {
   return estado.categorias.find((c) => c.id === id);
@@ -57,12 +22,14 @@ function mostrarTelaAuth() {
   document.getElementById("tela-auth").classList.remove("oculto");
   document.getElementById("tela-app").classList.add("oculto");
   document.getElementById("btn-sair").classList.add("oculto");
+  document.getElementById("link-relatorios").classList.add("oculto");
 }
 
 async function mostrarTelaApp() {
   document.getElementById("tela-auth").classList.add("oculto");
   document.getElementById("tela-app").classList.remove("oculto");
   document.getElementById("btn-sair").classList.remove("oculto");
+  document.getElementById("link-relatorios").classList.remove("oculto");
   await iniciarDashboard();
 }
 
@@ -312,12 +279,6 @@ function renderizarHistorico(itens) {
 
     corpo.appendChild(tr);
   });
-}
-
-function escaparHtml(texto) {
-  const div = document.createElement("div");
-  div.textContent = texto;
-  return div.innerHTML;
 }
 
 function renderizarPaginacao() {

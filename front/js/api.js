@@ -116,4 +116,19 @@ const Api = {
   apagarMovimentacao(id) {
     return requisitar("DELETE", `/movimentacoes/${id}`);
   },
+  relatorioPersonalizado(filtros) {
+    return requisitar("GET", "/relatorios/personalizado", { query: filtros });
+  },
+  relatorioComparativo(filtros) {
+    return requisitar("GET", "/relatorios/comparativo", { query: filtros });
+  },
+  listarRelatoriosAutomaticos() {
+    return requisitar("GET", "/relatorios");
+  },
+  obterRelatorioAutomatico(id) {
+    return requisitar("GET", `/relatorios/${id}`);
+  },
+  gerarRelatorioAgora(tipo) {
+    return requisitar("POST", "/relatorios/gerar-agora", { query: { tipo } });
+  },
 };

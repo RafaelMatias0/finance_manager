@@ -6,6 +6,7 @@ via a dependency `obter_usuario_atual`. Cada usuário só enxerga e
 manipula os próprios dados.
 """
 import uuid
+from datetime import date
 from typing import List, Optional
 
 from fastapi import FastAPI, Depends, HTTPException, Query, status
@@ -17,6 +18,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
 from app.security import hash_senha, verificar_senha, criar_access_token, obter_usuario_atual
+from app import relatorios as relatorios_service
+from app.scheduler import iniciar_scheduler, parar_scheduler
 
 app = FastAPI(title="Gerenciador de Finanças", version="0.3.0")
 
@@ -28,6 +31,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def _startup():
+    iniciar_scheduler()
+
+
+@app.on_event("shutdown")
+def _shutdown():
+    parar_scheduler()
 
 
 # ---------- Autenticação ----------
@@ -299,3 +312,83 @@ def consultar_saldo(
         total_despesas=total_despesas,
         saldo=total_receitas - total_despesas,
     )
+
+
+# ---------- Relatórios ----------
+
+@app.get("/relatorios/personalizado", tags=["relatorios"])
+def relatorio_personalizado(
+    data_inicio: date,
+    data_fim: date,
+    tipo: Optional[models.TipoMovimentacao] = None,
+    categoria_id: Optional[uuid.UUID] = None,
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    if data_fim < data_inicio:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="data_fim não pode ser anterior a data_inicio")
+    return relatorios_service.gerar_relatorio_basico(db, usuario_atual.id, data_inicio, data_fim, tipo, categoria_id)
+
+
+@app.get("/relatorios/comparativo", tags=["relatorios"])
+def relatorio_comparativo(
+    data_inicio: date,
+    data_fim: date,
+    categoria_id_1: uuid.UUID,
+    categoria_id_2: uuid.UUID,
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    if data_fim < data_inicio:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="data_fim não pode ser anterior a data_inicio")
+    if categoria_id_1 == categoria_id_2:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Escolha duas categorias diferentes")
+
+    for cat_id in (categoria_id_1, categoria_id_2):
+        categoria = db.get(models.Categoria, cat_id)
+        if not categoria:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Categoria não encontrada")
+        if categoria.usuario_id is not None and categoria.usuario_id != usuario_atual.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Categoria não pertence a esse usuário")
+
+    return relatorios_service.gerar_relatorio_comparativo(
+        db, usuario_atual.id, data_inicio, data_fim, categoria_id_1, categoria_id_2
+    )
+
+
+@app.get("/relatorios", response_model=List[schemas.RelatorioOut], tags=["relatorios"])
+def listar_relatorios_automaticos(
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    return (
+        db.query(models.Relatorio)
+        .filter(models.Relatorio.usuario_id == usuario_atual.id)
+        .order_by(models.Relatorio.criado_em.desc())
+        .all()
+    )
+
+
+@app.get("/relatorios/{relatorio_id}", response_model=schemas.RelatorioOut, tags=["relatorios"])
+def obter_relatorio_automatico(
+    relatorio_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    relatorio = db.get(models.Relatorio, relatorio_id)
+    if not relatorio or relatorio.usuario_id != usuario_atual.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relatório não encontrado")
+    return relatorio
+
+
+@app.post("/relatorios/gerar-agora", response_model=schemas.RelatorioOut, tags=["relatorios"])
+def gerar_relatorio_automatico_agora(
+    tipo: models.TipoRelatorio,
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    """Dispara na hora a geração de um relatório automático (semanal ou
+    mensal) para o período que já teria fechado, sem esperar o
+    agendamento. Útil para testar/demonstrar a funcionalidade sem esperar
+    a próxima segunda-feira 01:00 ou o próximo dia 1."""
+    return relatorios_service.gerar_e_salvar_relatorio_automatico(db, usuario_atual.id, tipo)

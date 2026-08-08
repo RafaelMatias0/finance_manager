@@ -39,27 +39,35 @@ gerenciador-financas/
 ├── app/
 │   ├── __init__.py
 │   ├── database.py      # engine, SessionLocal, Base, get_db()
-│   ├── models.py         # Usuario, Categoria, Movimentacao, TipoMovimentacao
+│   ├── models.py         # Usuario, Categoria, Movimentacao, Relatorio, enums
 │   ├── schemas.py        # schemas Pydantic (Create/Update/Out) de cada entidade
 │   ├── security.py       # hash de senha (bcrypt) + JWT (criar/validar token)
-│   ├── main.py            # app FastAPI: rotas, CORS
-│   └── seed.py           # popula categorias padrão (Salário, Alimentação, etc.)
+│   ├── relatorios.py      # lógica de agregação dos relatórios (personalizado/comparativo/automático)
+│   ├── scheduler.py       # APScheduler: jobs semanal (seg 01:00) e mensal (dia 1, 01:00)
+│   ├── main.py             # app FastAPI: rotas, CORS, start/stop do scheduler
+│   └── seed.py            # popula categorias padrão (Salário, Alimentação, etc.)
 ├── front/
 │   ├── index.html         # single-page: telas de auth + dashboard
-│   ├── css/style.css      # design "livro-razão" (ver seção Front-end)
+│   ├── relatorios.html    # relatórios: automáticos, personalizado, comparativo
+│   ├── css/
+│   │   ├── style.css       # design "livro-razão" (ver seção Front-end)
+│   │   └── relatorios.css  # estilos específicos da página de relatórios
 │   └── js/
 │       ├── config.js       # API_BASE_URL
+│       ├── utils.js        # formatação de moeda/data, toast (compartilhado)
 │       ├── api.js          # wrapper de fetch: token, erros, endpoints
-│       └── app.js          # lógica de UI: forms, tabela, paginação, modal
+│       ├── app.js          # lógica do dashboard: forms, tabela, paginação, modal
+│       └── relatorios.js   # lógica da página de relatórios (usa Chart.js via CDN)
 ├── alembic/
 │   ├── env.py             # já configurado para ler DATABASE_URL e os models
-│   └── versions/
-│       └── ..._criacao_inicial_usuarios_categorias_....py
+│   └── versions/          # inclui a migração da tabela `relatorios`
 ├── docker-compose.yml     # sobe o PostgreSQL local (porta 5433)
-├── test_jwt.py            # bateria de testes automatizados da API
+├── test_jwt.py            # bateria de testes automatizados: auth, CRUD, paginação
+├── test_relatorios.py     # bateria de testes automatizados: relatórios
 ├── alembic.ini
 ├── requirements.txt
 ├── .env.example
+├── CHANGELOG.md
 └── .gitignore
 ```
 
@@ -176,16 +184,115 @@ fechamento de conta.
 **O que tem implementado:** cadastro/login, tela com saldo (receitas,
 despesas, saldo), formulário de nova movimentação (com criação rápida de
 categoria própria embutida), histórico com filtros/paginação/ordenação,
-edição via modal, exclusão com confirmação, e logout. Sessão expirada (token
-vencido) redireciona automaticamente para a tela de login.
+edição via modal, exclusão com confirmação, logout, e uma página de
+**relatórios** (`relatorios.html`) com as três modalidades — automáticos,
+personalizado, comparativo — usando [Chart.js](https://www.chartjs.org/)
+via CDN para os gráficos. Sessão expirada (token vencido) redireciona
+automaticamente para a tela de login em ambas as páginas.
 
 O contrato HTTP entre front e back (nomes de campo, formato das respostas,
 FormData sempre enviando valores como string) foi validado com chamadas
-reais contra a API neste ambiente — 10/10 casos passando.
+reais contra a API neste ambiente.
+
+## Relatórios (v2.0)
+
+### Automáticos
+
+Um scheduler in-process (APScheduler, roda dentro do próprio processo do
+`uvicorn` — sem infra extra) gera, para cada usuário cadastrado:
+
+- **Semanal**: toda segunda-feira às 01:00, cobrindo a semana (segunda a
+  domingo) que acabou de fechar.
+- **Mensal**: todo dia 1 às 01:00, cobrindo o mês inteiro anterior.
+
+Cada execução salva um **snapshot** (tabela `relatorios`, coluna `dados`
+em JSONB) — não recalcula na hora de exibir, e preserva o retrato daquele
+período mesmo que o usuário edite ou apague movimentações depois. A lista
+fica disponível em `GET /relatorios` e cada um em `GET /relatorios/{id}`.
+
+Como não há sistema de e-mail/notificação no projeto, "gerar automaticamente"
+aqui significa: fica salvo e aparece na aba **Automáticos** da página de
+relatórios — não há envio ativo pro usuário.
+
+Pra não precisar esperar a próxima segunda 01:00 (ou o próximo dia 1) pra
+ver/testar, tem `POST /relatorios/gerar-agora?tipo=automatico_semanal` (ou
+`automatico_mensal`), que gera na hora. O botão "Gerar agora" na aba
+Automáticos chama essa rota — é uma facilidade de teste/demonstração, não
+o fluxo principal.
+
+### Personalizado
+
+`GET /relatorios/personalizado?data_inicio=...&data_fim=...&tipo=...&categoria_id=...`
+
+- `data_inicio`/`data_fim`: obrigatórios.
+- `tipo` (opcional): `receita`, `despesa`, ou omitido = todos.
+- `categoria_id` (opcional): além de aparecer no histórico normalmente,
+  ativa o **gráfico de participação** dessa categoria.
+
+Retorna: histórico do período (respeitando os filtros), saldo do período
+(`total_receitas`, `total_despesas`, `saldo`), um gráfico diário (receitas
+e despesas por dia, com todos os dias do intervalo mesmo os sem
+movimentação) e, se `categoria_id` foi informado, a participação dela.
+
+**Decisão de design**: a "participação da categoria no total" é calculada
+contra o total do **mesmo tipo** dela no período (ex: "Alimentação"
+representa X% do total de *despesas* do período) — não contra
+receitas+despesas somadas, que não faria sentido misturar (foi confirmado
+com o usuário durante o desenvolvimento).
+
+### Comparativo
+
+`GET /relatorios/comparativo?data_inicio=...&data_fim=...&categoria_id_1=...&categoria_id_2=...`
+
+Sempre retorna: totais de cada categoria, histórico combinado das duas, e
+um gráfico de linhas com o total diário de cada uma. O resto depende do
+`modo`:
+
+- **`tipos_diferentes`** (uma receita, uma despesa): `saldo_diferenca` =
+  total da receita menos total da despesa.
+- **`mesmo_tipo`** (as duas receita, ou as duas despesa): `saldo_soma` =
+  soma das duas, mais dois gráficos de pizza — participação de cada
+  categoria isolada no total daquele tipo no período, e participação das
+  duas *somadas* no mesmo total.
+
+### Rotas de relatório
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/relatorios/personalizado` | Relatório sob demanda (não fica salvo) |
+| GET | `/relatorios/comparativo` | Comparação entre duas categorias (não fica salvo) |
+| GET | `/relatorios` | Lista os relatórios automáticos salvos do usuário |
+| GET | `/relatorios/{id}` | Um relatório automático salvo específico |
+| POST | `/relatorios/gerar-agora?tipo=` | Gera um automático na hora (teste/demonstração) |
+
+Todas exigem token, e um usuário nunca vê relatório/categoria de outro
+(testado — ver abaixo).
+
+### Testes dos relatórios
+
+`test_relatorios.py` cria movimentações num período fixo com valores
+conhecidos e confere a matemática das agregações **à mão** (não só que a
+rota responde 200) — histórico, saldo, gráfico diário dia a dia, percentual
+de participação, diferença/soma no comparativo, participação individual e
+combinada. Também cobre os erros (`data_fim` antes de `data_inicio`,
+categorias iguais no comparativo, categoria inexistente/de outro usuário) e
+o ciclo gerar-agora → listar → obter → isolamento entre usuários.
+**45/45 passando.**
+
+O front-end (`relatorios.js`) foi validado com um teste de contrato HTTP
+(chamadas reais contra a API, conferindo que todo campo que o JS lê
+realmente existe na resposta) — **11/11 passando**. Como nas versões
+anteriores, não foi possível abrir um navegador de verdade neste ambiente
+(Chromium via apt e Playwright via pip, ambos bloqueados) — **os gráficos
+(Chart.js) e a navegação entre abas precisam ser conferidos visualmente
+por você.**
 
 ## Próximos passos sugeridos
 
 1. Refresh token / expiração mais robusta (hoje o token expira em 60min,
    sem renovação — o usuário precisa logar de novo).
-2. Gráficos simples no dashboard (ex: despesas por categoria).
-3. Deploy (ex: Render/Railway para a API + Postgres gerenciado).
+2. Deploy (ex: Render/Railway para a API + Postgres gerenciado). Atenção:
+   o scheduler in-process assume um único processo/worker — em produção
+   com múltiplos workers, cada um agendaria o job e duplicaria os
+   relatórios; precisaria virar um worker separado (ex: Celery beat) ou
+   usar um lock distribuído.
