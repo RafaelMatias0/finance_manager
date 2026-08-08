@@ -1,0 +1,523 @@
+/* ============================================================
+   COFRE — sistema de design "livro-razão"
+
+   Conceito: precisão contábil, não fintech genérica. Fundo papel,
+   tinta verde-floresta, números em monoespaçada como um razão de
+   verdade. Verde/terracota codificam receita/despesa (informação
+   real, não decoração). O saldo final leva sublinhado duplo — a
+   convenção contábil de fechamento de conta.
+   ============================================================ */
+
+:root {
+  /* Cor */
+  --papel: #EDEEE7;
+  --papel-cartao: #FBFBF8;
+  --tinta: #16241D;
+  --tinta-suave: #4A5850;
+  --linha: #D3D6C9;
+  --linha-forte: #A9AF9C;
+  --receita: #2F6F4E;
+  --receita-fundo: #E4EFE7;
+  --despesa: #B3462C;
+  --despesa-fundo: #F5E7E1;
+  --dourado: #A9862E;
+  --dourado-fundo: #F1E9D2;
+  --erro: #A3341E;
+  --erro-fundo: #FBE9E5;
+
+  /* Tipografia */
+  --fonte-display: "Lora", Georgia, serif;
+  --fonte-corpo: "Inter", system-ui, sans-serif;
+  --fonte-mono: "IBM Plex Mono", "Courier New", monospace;
+
+  /* Layout */
+  --raio: 3px;
+  --sombra-cartao: 0 1px 2px rgba(22, 36, 29, 0.06), 0 4px 16px rgba(22, 36, 29, 0.05);
+  --transicao: 140ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --transicao: 0ms; }
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--papel);
+  background-image:
+    linear-gradient(var(--linha) 1px, transparent 1px);
+  background-size: 100% 2.2rem;
+  color: var(--tinta);
+  font-family: var(--fonte-corpo);
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+.oculto { display: none !important; }
+
+button, input, select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--dourado);
+  outline-offset: 2px;
+}
+
+/* ---------- Topo ---------- */
+
+.topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.75rem;
+  border-bottom: 1px solid var(--linha-forte);
+  background: var(--papel);
+}
+
+.topo__marca {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.topo__selo {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  background: var(--tinta);
+  color: var(--papel);
+  font-family: var(--fonte-display);
+  font-weight: 600;
+  border-radius: var(--raio);
+  font-size: 1.05rem;
+}
+
+.topo__nome {
+  font-family: var(--fonte-display);
+  font-weight: 600;
+  font-size: 1.25rem;
+  letter-spacing: 0.01em;
+}
+
+/* ---------- Botões ---------- */
+
+.btn {
+  font-weight: 600;
+  padding: 0.65rem 1.2rem;
+  border-radius: var(--raio);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--transicao), border-color var(--transicao), color var(--transicao);
+}
+
+.btn--principal {
+  background: var(--tinta);
+  color: var(--papel);
+}
+.btn--principal:hover { background: #24382c; }
+
+.btn--secundario {
+  background: transparent;
+  border-color: var(--tinta);
+  color: var(--tinta);
+}
+.btn--secundario:hover { background: rgba(22, 36, 29, 0.06); }
+
+.btn--fantasma {
+  background: transparent;
+  color: var(--tinta-suave);
+  border-color: var(--linha-forte);
+}
+.btn--fantasma:hover { border-color: var(--tinta); color: var(--tinta); }
+
+.btn--pequeno { padding: 0.45rem 0.85rem; font-size: 0.85rem; }
+
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.link-acao {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--dourado);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Auth ---------- */
+
+.tela-auth {
+  min-height: calc(100vh - 68px);
+  display: grid;
+  place-items: center;
+  padding: 2rem 1rem;
+}
+
+.cartao-auth {
+  width: 100%;
+  max-width: 380px;
+  background: var(--papel-cartao);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-cartao);
+  padding: 1.75rem;
+}
+
+.cartao-auth__abas {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--linha);
+}
+
+.aba {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0.6rem 0;
+  font-family: var(--fonte-display);
+  font-size: 1rem;
+  color: var(--tinta-suave);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.aba.is-ativa {
+  color: var(--tinta);
+  border-bottom-color: var(--dourado);
+}
+
+/* ---------- Formulários ---------- */
+
+.formulario { display: flex; flex-direction: column; gap: 0.9rem; }
+
+.campo { display: flex; flex-direction: column; gap: 0.35rem; }
+
+.campo span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--tinta-suave);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.campo input, .campo select {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  background: var(--papel-cartao);
+  color: var(--tinta);
+}
+
+.campo input:focus, .campo select:focus {
+  border-color: var(--dourado);
+}
+
+.campo--compacto { min-width: 130px; }
+
+.erro-formulario {
+  display: none;
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  background: var(--erro-fundo);
+  color: var(--erro);
+  border-radius: var(--raio);
+  font-size: 0.85rem;
+}
+.erro-formulario.is-visivel { display: block; }
+
+.campo-grupo-tipo {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.opcao-tipo {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem;
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.opcao-tipo:has(input:checked) {
+  border-color: var(--tinta);
+  background: rgba(22, 36, 29, 0.05);
+}
+
+.bloco-nova-categoria {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-end;
+  padding: 0.75rem;
+  background: var(--dourado-fundo);
+  border-radius: var(--raio);
+}
+.bloco-nova-categoria .campo { flex: 1; }
+
+/* ---------- App / Dashboard ---------- */
+
+.tela-app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.75rem;
+}
+
+.resumo {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.resumo__item {
+  background: var(--papel-cartao);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  padding: 1.1rem 1.3rem;
+  box-shadow: var(--sombra-cartao);
+}
+
+.resumo__rotulo {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tinta-suave);
+  margin-bottom: 0.4rem;
+}
+
+.resumo__valor {
+  display: block;
+  font-family: var(--fonte-mono);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.valor--receita { color: var(--receita); }
+.valor--despesa { color: var(--despesa); }
+
+.resumo__item--saldo {
+  border-color: var(--tinta);
+}
+
+.resumo__valor--saldo {
+  padding-bottom: 0.35rem;
+  border-bottom: 3px double var(--tinta);
+  display: inline-block;
+}
+
+/* ---------- Grade principal ---------- */
+
+.grade-principal {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.painel {
+  background: var(--papel-cartao);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-cartao);
+  padding: 1.3rem;
+}
+
+.painel__titulo {
+  font-family: var(--fonte-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+}
+
+.painel__cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.painel__cabecalho .painel__titulo { margin: 0; }
+
+/* ---------- Filtros ---------- */
+
+.bloco-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  align-items: flex-end;
+}
+
+.bloco-filtros__acoes {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ---------- Tabela ---------- */
+
+.tabela-scroll { overflow-x: auto; }
+
+.tabela-historico {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.tabela-historico th {
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tinta-suave);
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--linha-forte);
+}
+
+.tabela-historico td {
+  padding: 0.65rem 0.6rem;
+  border-bottom: 1px solid var(--linha);
+  vertical-align: middle;
+}
+
+.tabela-historico tbody tr:hover { background: rgba(22, 36, 29, 0.03); }
+
+.alinhar-direita { text-align: right; }
+
+.celula-valor {
+  font-family: var(--fonte-mono);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.etiqueta-categoria {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  background: var(--linha);
+}
+
+.acoes-linha { display: flex; gap: 0.5rem; justify-content: flex-end; }
+.acoes-linha button {
+  background: none;
+  border: none;
+  padding: 0.2rem 0.3rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--tinta-suave);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.acoes-linha button:hover { color: var(--tinta); }
+.acoes-linha .btn-apagar:hover { color: var(--despesa); }
+
+.estado-vazio {
+  text-align: center;
+  color: var(--tinta-suave);
+  padding: 2rem 1rem;
+  font-style: italic;
+  font-family: var(--fonte-display);
+}
+
+/* ---------- Paginação ---------- */
+
+.paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.paginacao__texto {
+  font-family: var(--fonte-mono);
+  font-size: 0.8rem;
+  color: var(--tinta-suave);
+}
+
+/* ---------- Modal de edição ---------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(22, 36, 29, 0.35);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 10;
+}
+
+.modal__conteudo {
+  width: 100%;
+  max-width: 420px;
+  background: var(--papel-cartao);
+  border-radius: var(--raio);
+  padding: 1.5rem;
+  box-shadow: var(--sombra-cartao);
+}
+
+.modal__acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+}
+
+/* ---------- Toasts ---------- */
+
+.regiao-toast {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 20;
+}
+
+.toast {
+  background: var(--tinta);
+  color: var(--papel);
+  padding: 0.7rem 1rem;
+  border-radius: var(--raio);
+  font-size: 0.85rem;
+  box-shadow: var(--sombra-cartao);
+  animation: toast-entrada var(--transicao) ease;
+}
+
+.toast--erro { background: var(--erro); }
+
+@keyframes toast-entrada {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Responsivo ---------- */
+
+@media (max-width: 800px) {
+  .grade-principal { grid-template-columns: 1fr; }
+  .resumo { grid-template-columns: 1fr; }
+  .tela-app { padding: 1rem; }
+}

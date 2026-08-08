@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cofre — controle financeiro pessoal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="topo">
+  <div class="topo__marca">
+    <span class="topo__selo">C</span>
+    <span class="topo__nome">Cofre</span>
+  </div>
+  <button id="btn-sair" class="btn btn--fantasma oculto">Sair</button>
+</header>
+
+<main id="tela-auth" class="tela-auth">
+  <div class="cartao-auth">
+    <div class="cartao-auth__abas" role="tablist">
+      <button class="aba is-ativa" data-aba="login" role="tab" aria-selected="true">Entrar</button>
+      <button class="aba" data-aba="cadastro" role="tab" aria-selected="false">Criar conta</button>
+    </div>
+
+    <form id="form-login" class="formulario" data-painel="login">
+      <p class="erro-formulario" id="erro-login" role="alert"></p>
+      <label class="campo">
+        <span>Email</span>
+        <input type="email" name="email" required autocomplete="email" />
+      </label>
+      <label class="campo">
+        <span>Senha</span>
+        <input type="password" name="senha" required autocomplete="current-password" />
+      </label>
+      <button type="submit" class="btn btn--principal">Entrar</button>
+    </form>
+
+    <form id="form-cadastro" class="formulario oculto" data-painel="cadastro">
+      <p class="erro-formulario" id="erro-cadastro" role="alert"></p>
+      <label class="campo">
+        <span>Nome</span>
+        <input type="text" name="nome" required autocomplete="name" />
+      </label>
+      <label class="campo">
+        <span>Email</span>
+        <input type="email" name="email" required autocomplete="email" />
+      </label>
+      <label class="campo">
+        <span>Senha</span>
+        <input type="password" name="senha" required minlength="6" autocomplete="new-password" />
+      </label>
+      <button type="submit" class="btn btn--principal">Criar conta</button>
+    </form>
+  </div>
+</main>
+
+<main id="tela-app" class="tela-app oculto">
+
+  <section class="resumo" aria-label="Resumo financeiro">
+    <div class="resumo__item">
+      <span class="resumo__rotulo">Receitas</span>
+      <span class="resumo__valor valor--receita" id="valor-receitas">R$ 0,00</span>
+    </div>
+    <div class="resumo__item">
+      <span class="resumo__rotulo">Despesas</span>
+      <span class="resumo__valor valor--despesa" id="valor-despesas">R$ 0,00</span>
+    </div>
+    <div class="resumo__item resumo__item--saldo">
+      <span class="resumo__rotulo">Saldo</span>
+      <span class="resumo__valor resumo__valor--saldo" id="valor-saldo">R$ 0,00</span>
+    </div>
+  </section>
+
+  <div class="grade-principal">
+
+    <section class="painel painel--form" aria-label="Nova movimentação">
+      <h2 class="painel__titulo">Nova movimentação</h2>
+      <form id="form-movimentacao" class="formulario">
+        <p class="erro-formulario" id="erro-movimentacao" role="alert"></p>
+
+        <div class="campo-grupo-tipo" role="radiogroup" aria-label="Tipo">
+          <label class="opcao-tipo">
+            <input type="radio" name="tipo" value="receita" checked />
+            <span>Receita</span>
+          </label>
+          <label class="opcao-tipo">
+            <input type="radio" name="tipo" value="despesa" />
+            <span>Despesa</span>
+          </label>
+        </div>
+
+        <label class="campo">
+          <span>Valor</span>
+          <input type="number" name="valor" step="0.01" min="0.01" required placeholder="0,00" />
+        </label>
+
+        <label class="campo">
+          <span>Categoria</span>
+          <select name="categoria_id" id="select-categoria" required></select>
+        </label>
+
+        <button type="button" id="btn-toggle-nova-categoria" class="link-acao">+ nova categoria</button>
+
+        <div id="bloco-nova-categoria" class="bloco-nova-categoria oculto">
+          <label class="campo">
+            <span>Nome da categoria</span>
+            <input type="text" id="input-nome-categoria" maxlength="80" placeholder="Ex: Freelas" />
+          </label>
+          <button type="button" id="btn-salvar-categoria" class="btn btn--secundario btn--pequeno">Salvar categoria</button>
+        </div>
+
+        <label class="campo">
+          <span>Descrição</span>
+          <input type="text" name="descricao" maxlength="255" placeholder="Opcional" />
+        </label>
+
+        <label class="campo">
+          <span>Data</span>
+          <input type="date" name="data" required />
+        </label>
+
+        <button type="submit" class="btn btn--principal">Adicionar</button>
+      </form>
+    </section>
+
+    <section class="painel painel--historico" aria-label="Histórico de movimentações">
+      <div class="painel__cabecalho">
+        <h2 class="painel__titulo">Histórico</h2>
+        <button id="btn-toggle-filtros" class="link-acao">Filtros</button>
+      </div>
+
+      <div id="bloco-filtros" class="bloco-filtros oculto">
+        <label class="campo campo--compacto">
+          <span>Tipo</span>
+          <select id="filtro-tipo">
+            <option value="">Todos</option>
+            <option value="receita">Receita</option>
+            <option value="despesa">Despesa</option>
+          </select>
+        </label>
+        <label class="campo campo--compacto">
+          <span>Categoria</span>
+          <select id="filtro-categoria">
+            <option value="">Todas</option>
+          </select>
+        </label>
+        <label class="campo campo--compacto">
+          <span>De</span>
+          <input type="date" id="filtro-data-inicio" />
+        </label>
+        <label class="campo campo--compacto">
+          <span>Até</span>
+          <input type="date" id="filtro-data-fim" />
+        </label>
+        <label class="campo campo--compacto">
+          <span>Ordenar por</span>
+          <select id="filtro-ordenar-por">
+            <option value="data">Data</option>
+            <option value="valor">Valor</option>
+            <option value="criado_em">Criado em</option>
+          </select>
+        </label>
+        <label class="campo campo--compacto">
+          <span>Ordem</span>
+          <select id="filtro-ordem">
+            <option value="desc">Decrescente</option>
+            <option value="asc">Crescente</option>
+          </select>
+        </label>
+        <div class="bloco-filtros__acoes">
+          <button id="btn-aplicar-filtros" class="btn btn--secundario btn--pequeno">Aplicar</button>
+          <button id="btn-limpar-filtros" class="btn btn--fantasma btn--pequeno">Limpar</button>
+        </div>
+      </div>
+
+      <div class="tabela-scroll">
+        <table class="tabela-historico">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Descrição</th>
+              <th>Categoria</th>
+              <th class="alinhar-direita">Valor</th>
+              <th class="alinhar-direita">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="corpo-historico">
+          </tbody>
+        </table>
+        <p id="historico-vazio" class="estado-vazio oculto">
+          Nenhuma movimentação por aqui ainda. Adicione a primeira ao lado.
+        </p>
+      </div>
+
+      <div class="paginacao">
+        <button id="btn-pagina-anterior" class="btn btn--fantasma btn--pequeno" disabled>← Anterior</button>
+        <span id="texto-paginacao" class="paginacao__texto"></span>
+        <button id="btn-pagina-proxima" class="btn btn--fantasma btn--pequeno" disabled>Próxima →</button>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<div id="modal-edicao" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="modal-edicao-titulo">
+  <div class="modal__conteudo">
+    <h2 id="modal-edicao-titulo" class="painel__titulo">Editar movimentação</h2>
+    <form id="form-edicao" class="formulario">
+      <p class="erro-formulario" id="erro-edicao" role="alert"></p>
+      <input type="hidden" name="id" />
+      <label class="campo">
+        <span>Valor</span>
+        <input type="number" name="valor" step="0.01" min="0.01" required />
+      </label>
+      <label class="campo">
+        <span>Categoria</span>
+        <select name="categoria_id" id="select-categoria-edicao" required></select>
+      </label>
+      <label class="campo">
+        <span>Descrição</span>
+        <input type="text" name="descricao" maxlength="255" />
+      </label>
+      <label class="campo">
+        <span>Data</span>
+        <input type="date" name="data" required />
+      </label>
+      <div class="modal__acoes">
+        <button type="button" id="btn-cancelar-edicao" class="btn btn--fantasma">Cancelar</button>
+        <button type="submit" class="btn btn--principal">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="regiao-toast" class="regiao-toast" aria-live="polite"></div>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: pg-financas
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gerenciador_financas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"   # host:container — ajuste a porta do host se 5433 também estiver em uso
+    volumes:
+      - pg-financas-data:/var/lib/postgresql/data
+
+volumes:
+  pg-financas-data:
