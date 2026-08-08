@@ -516,8 +516,90 @@ button, input, select {
 
 /* ---------- Responsivo ---------- */
 
+/* ---------- Responsivo: tablet (empilha as duas colunas) ---------- */
+
 @media (max-width: 800px) {
   .grade-principal { grid-template-columns: 1fr; }
   .resumo { grid-template-columns: 1fr; }
   .tela-app { padding: 1rem; }
 }
+
+/* ---------- Responsivo: celular ----------
+   Alvos de toque maiores (min. 44px, recomendação de acessibilidade),
+   fonte de 16px em inputs (evita o zoom automático que iOS faz em campos
+   com fonte menor que isso ao focar), tabela vira lista de "cards"
+   (5 colunas não cabem numa tela de ~375px de largura). */
+
+@media (max-width: 600px) {
+  .topo { padding: 0.85rem 1rem; }
+  .topo__nome { font-size: 1.1rem; }
+
+  .tela-app { padding: 0.75rem; }
+
+  .cartao-auth { padding: 1.25rem; }
+
+  .painel { padding: 1rem; }
+
+  /* Toque: botões e campos com altura mínima confortável */
+  .btn { min-height: 44px; }
+  .campo input, .campo select {
+    font-size: 16px; /* evita zoom automático do iOS ao focar */
+    min-height: 44px;
+  }
+  .aba { min-height: 44px; }
+
+  /* Filtros: cada campo ocupa a largura toda, em vez de tentar caber lado a lado */
+  .bloco-filtros { flex-direction: column; align-items: stretch; }
+  .campo--compacto { min-width: 0; width: 100%; }
+  .bloco-filtros__acoes { width: 100%; }
+  .bloco-filtros__acoes .btn { flex: 1; }
+
+  .bloco-nova-categoria { flex-direction: column; align-items: stretch; }
+
+  /* Resumo: valores um pouco menores pra não apertar em telas estreitas */
+  .resumo__valor { font-size: 1.3rem; }
+
+  /* Tabela -> lista de cards: cada <tr> vira um cartão, cada <td> vira uma
+     linha "rótulo: valor" (o rótulo vem do atributo data-label no HTML). */
+  .tabela-historico thead { display: none; }
+  .tabela-historico, .tabela-historico tbody, .tabela-historico tr, .tabela-historico td {
+    display: block;
+    width: 100%;
+  }
+  .tabela-historico tr {
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--linha-forte);
+    border-radius: var(--raio);
+    padding: 0.7rem 0.85rem;
+    background: var(--papel-cartao);
+  }
+  .tabela-historico tr:last-child { margin-bottom: 0; }
+  .tabela-historico td {
+    border: none;
+    padding: 0.4rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    text-align: right;
+  }
+  .tabela-historico td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--tinta-suave);
+    text-align: left;
+  }
+  .tabela-historico td[data-label="Ações"] { padding-top: 0.6rem; margin-top: 0.3rem; border-top: 1px solid var(--linha); }
+  .tabela-historico td[data-label="Ações"]::before { display: none; }
+  .acoes-linha { justify-content: flex-end; gap: 1rem; }
+  .acoes-linha button { padding: 0.4rem 0.2rem; font-size: 0.9rem; }
+
+  /* Paginação: evita quebra estranha em telas bem estreitas */
+  .paginacao { gap: 0.6rem; flex-wrap: wrap; }
+
+  .modal__conteudo { padding: 1.1rem; }
+}
+

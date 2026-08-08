@@ -295,11 +295,11 @@ function renderizarHistorico(itens) {
     const sinal = categoria?.tipo === "despesa" ? "−" : "+";
 
     tr.innerHTML = `
-      <td>${formatarDataBR(mov.data)}</td>
-      <td>${mov.descricao ? escaparHtml(mov.descricao) : '<span style="color:var(--tinta-suave)">—</span>'}</td>
-      <td><span class="etiqueta-categoria">${escaparHtml(categoria?.nome ?? "—")}</span></td>
-      <td class="alinhar-direita celula-valor ${classeValor}">${sinal} ${formatarMoeda(mov.valor)}</td>
-      <td>
+      <td data-label="Data">${formatarDataBR(mov.data)}</td>
+      <td data-label="Descrição">${mov.descricao ? escaparHtml(mov.descricao) : '<span style="color:var(--tinta-suave)">—</span>'}</td>
+      <td data-label="Categoria"><span class="etiqueta-categoria">${escaparHtml(categoria?.nome ?? "—")}</span></td>
+      <td data-label="Valor" class="alinhar-direita celula-valor ${classeValor}">${sinal} ${formatarMoeda(mov.valor)}</td>
+      <td data-label="Ações">
         <div class="acoes-linha">
           <button type="button" class="btn-editar">Editar</button>
           <button type="button" class="btn-apagar">Apagar</button>
