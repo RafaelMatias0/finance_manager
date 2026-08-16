@@ -1,5 +1,38 @@
 # Changelog
 
+## v2.1.0 — Fase 1: Contas bancárias + Sidebar
+
+- **Contas bancárias** (`Conta`): registro "de visão" — nome do banco, apelido
+  opcional e saldo inicial configurável. Sem qualquer integração real com
+  bancos. Rotas `GET/POST/PATCH/DELETE /contas` (delete bloqueado com `409`
+  se a conta tiver movimentações/transferências vinculadas).
+- **`Movimentacao.conta_id` passou a ser obrigatório** — toda movimentação
+  agora pertence a uma conta. `ON DELETE RESTRICT`, mesmo padrão já usado
+  em `categoria_id`.
+- **Transferências entre contas** (`Transferencia`): modelo novo, separado
+  de `Movimentacao` de propósito — não é receita nem despesa, então não
+  entra nos relatórios (que derivam o tipo a partir de `Categoria.tipo`).
+  Só afeta o saldo calculado das duas contas envolvidas. Rotas
+  `GET/POST /transferencias`.
+- **Saldo por conta**: `GET /contas` já retorna `saldo_atual` calculado
+  (saldo inicial + receitas − despesas + transferências recebidas −
+  enviadas) por conta. `GET /saldo` (total do usuário) passou a somar
+  também os saldos iniciais de todas as contas.
+- **Front-end**: nova sidebar recolhível, compartilhada entre as páginas
+  logadas (`js/sidebar.js`), com os itens Início, Relatórios, Contas,
+  e Pendências/Planos e Metas marcados como "em breve" (ainda sem página —
+  fases seguintes). Formulário de nova movimentação e modal de edição
+  passaram a exigir conta; histórico ganhou coluna e filtro de conta;
+  novo painel "Contas" no dashboard (criar/editar/apagar conta, transferir
+  entre contas).
+- **Correção**: removidas duas duplicações de rota que existiam no
+  `main.py` (`PATCH /categorias/{id}` e `PATCH /movimentacoes/{id}`
+  estavam definidas duas vezes cada — o FastAPI só registrava a última;
+  agora só existe uma definição de cada).
+- **Breaking change de schema**: como combinado, o banco precisa ser
+  resetado (`alembic downgrade base` + `alembic upgrade head`) — não há
+  migração de dados antigos sem conta, já que `conta_id` é `NOT NULL`.
+
 ## v2.0.0
 
 - Sistema de relatórios:

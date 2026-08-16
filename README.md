@@ -9,8 +9,14 @@ modelagem do banco de dados. O front-end (HTML/CSS/JS puro) será feito por
 - **Usuario** — id (UUID), nome, email (único), senha_hash, criado_em, atualizado_em
 - **Categoria** — id, nome, tipo (`receita`/`despesa`), usuario_id (nulo = categoria
   padrão/global; preenchido = categoria criada pelo próprio usuário), criado_em
+- **Conta** — id, usuario_id, nome_banco, apelido (opcional), saldo_inicial
+  (Numeric 12,2), criado_em. Registro "de visão" de uma conta bancária —
+  só o nome do banco e um saldo inicial, sem qualquer integração real.
 - **Movimentacao** — id, valor (Numeric 12,2), descricao, data, usuario_id,
-  categoria_id, criado_em, atualizado_em
+  categoria_id, conta_id, criado_em, atualizado_em
+- **Transferencia** — id, usuario_id, conta_origem_id, conta_destino_id,
+  valor (Numeric 12,2), descricao (opcional), data, criado_em. Movimento
+  entre duas contas do próprio usuário — não é receita nem despesa.
 
 ### Decisões de design
 
@@ -31,6 +37,20 @@ modelagem do banco de dados. O front-end (HTML/CSS/JS puro) será feito por
   categoria que já tem movimentações vinculadas (evita perder o histórico
   silenciosamente). `usuario_id` usa `CASCADE`: se o usuário for apagado,
   suas categorias e movimentações vão junto.
+- **`Movimentacao.conta_id` é obrigatório**, mesmo padrão `RESTRICT` de
+  `categoria_id` — toda movimentação pertence a uma conta bancária do
+  usuário.
+- **Transferência como tabela própria, separada de Movimentacao** — uma
+  transferência entre contas não é receita nem despesa, então não deveria
+  ter Categoria nem aparecer nos relatórios (que derivam o tipo a partir de
+  `Categoria.tipo`). Colocá-la em `Movimentacao` exigiria gambiarras (uma
+  categoria fake "Transferência", ou um campo de tipo redundante que o
+  projeto evita desde o v1). Como tabela própria, o saldo de cada conta
+  soma transferências recebidas e subtrai as enviadas, e o total do
+  usuário nunca é afetado (é sempre soma zero entre contas do mesmo dono).
+- **Saldo de conta nunca é persistido** — mesma lógica do saldo geral do
+  usuário: é sempre `saldo_inicial + receitas - despesas + transferências
+  recebidas - transferências enviadas`, calculado na hora.
 
 ## Estrutura do projeto
 
@@ -39,9 +59,10 @@ gerenciador-financas/
 ├── app/
 │   ├── __init__.py
 │   ├── database.py      # engine, SessionLocal, Base, get_db()
-│   ├── models.py         # Usuario, Categoria, Movimentacao, Relatorio, enums
+│   ├── models.py         # Usuario, Categoria, Conta, Movimentacao, Transferencia, Relatorio, enums
 │   ├── schemas.py        # schemas Pydantic (Create/Update/Out) de cada entidade
 │   ├── security.py       # hash de senha (bcrypt) + JWT (criar/validar token)
+│   ├── contas.py          # cálculo de saldo por conta (individual e em lote)
 │   ├── relatorios.py      # lógica de agregação dos relatórios (personalizado/comparativo/automático)
 │   ├── scheduler.py       # APScheduler: jobs semanal (seg 01:00) e mensal (dia 1, 01:00)
 │   ├── main.py             # app FastAPI: rotas, CORS, start/stop do scheduler
@@ -56,7 +77,8 @@ gerenciador-financas/
 │       ├── config.js       # API_BASE_URL
 │       ├── utils.js        # formatação de moeda/data, toast (compartilhado)
 │       ├── api.js          # wrapper de fetch: token, erros, endpoints
-│       ├── app.js          # lógica do dashboard: forms, tabela, paginação, modal
+│       ├── sidebar.js      # sidebar recolhível compartilhada entre páginas logadas
+│       ├── app.js          # lógica do dashboard: forms, tabela, paginação, modais, contas, transferência
 │       └── relatorios.js   # lógica da página de relatórios (usa Chart.js via CDN)
 ├── alembic/
 │   ├── env.py             # já configurado para ler DATABASE_URL e os models
@@ -99,6 +121,12 @@ gerenciador-financas/
    ```bash
    alembic upgrade head
    ```
+   ⚠️ A partir da v2.1.0 (`Movimentacao.conta_id` obrigatório), se você já
+   tinha um banco de testes de versões anteriores, rode
+   `alembic downgrade base` antes do `upgrade head` — a migração de contas
+   assume banco limpo, sem dados antigos pra preservar. Também ajuste o
+   `down_revision` em `alembic/versions/0004_contas_e_transferencias.py`
+   para apontar pro seu head atual antes de rodar (`alembic heads`).
 
 5. **(Opcional) Popular categorias padrão**:
    ```bash
@@ -134,11 +162,17 @@ rota protegida extrai o usuário logado do token (`Authorization: Bearer
 | GET | `/categorias` | sim | Lista categorias padrão + as do usuário logado |
 | POST | `/categorias` | sim | Cria categoria própria do usuário logado |
 | PATCH | `/categorias/{id}` | sim | Edita categoria própria (categorias globais e de outros usuários retornam `404`) |
-| POST | `/movimentacoes` | sim | Cria receita ou despesa para o usuário logado |
-| GET | `/movimentacoes` | sim | Histórico do usuário logado, filtros: `tipo`, `categoria_id`, `data_inicio`, `data_fim`; paginação: `skip`, `limit`; ordenação: `ordenar_por` (`data`\|`valor`\|`criado_em`), `ordem` (`asc`\|`desc`) |
+| GET | `/contas` | sim | Lista as contas do usuário logado, cada uma já com `saldo_atual` calculado |
+| POST | `/contas` | sim | Cria conta bancária (nome do banco, apelido opcional, saldo inicial) |
+| PATCH | `/contas/{id}` | sim | Edita conta própria (campos opcionais — só os enviados mudam) |
+| DELETE | `/contas/{id}` | sim | Remove conta própria; `409` se houver movimentações/transferências vinculadas |
+| POST | `/movimentacoes` | sim | Cria receita ou despesa para o usuário logado (exige `conta_id`) |
+| GET | `/movimentacoes` | sim | Histórico do usuário logado, filtros: `tipo`, `categoria_id`, `conta_id`, `data_inicio`, `data_fim`; paginação: `skip`, `limit`; ordenação: `ordenar_por` (`data`\|`valor`\|`criado_em`), `ordem` (`asc`\|`desc`) |
 | PATCH | `/movimentacoes/{id}` | sim | Edita movimentação própria (campos opcionais — só os enviados mudam) |
 | DELETE | `/movimentacoes/{id}` | sim | Remove movimentação (só se for do usuário logado — senão `404`) |
-| GET | `/saldo` | sim | Total de receitas, despesas e saldo do usuário logado |
+| GET | `/transferencias` | sim | Histórico de transferências entre contas do usuário logado |
+| POST | `/transferencias` | sim | Transfere valor entre duas contas próprias (não é receita nem despesa) |
+| GET | `/saldo` | sim | Total de receitas, despesas e saldo geral do usuário logado (soma os saldos iniciais de todas as contas) |
 
 No Swagger (`/docs`), use o botão **Authorize** e informe o email/senha
 cadastrados — ele já fala o protocolo OAuth2 Password que a rota
@@ -181,14 +215,20 @@ fechamento de conta.
    e acesse `http://127.0.0.1:5500`.
 3. Se a API não estiver em `http://127.0.0.1:8000`, ajuste em `front/js/config.js`.
 
-**O que tem implementado:** cadastro/login, tela com saldo (receitas,
-despesas, saldo), formulário de nova movimentação (com criação rápida de
-categoria própria embutida), histórico com filtros/paginação/ordenação,
-edição via modal, exclusão com confirmação, logout, e uma página de
-**relatórios** (`relatorios.html`) com as três modalidades — automáticos,
-personalizado, comparativo — usando [Chart.js](https://www.chartjs.org/)
-via CDN para os gráficos. Sessão expirada (token vencido) redireciona
-automaticamente para a tela de login em ambas as páginas.
+**O que tem implementado:** cadastro/login, sidebar recolhível compartilhada
+entre as páginas logadas (item ativo destacado, estado colapsado
+persistido), tela com saldo (receitas, despesas, saldo), painel de
+**contas bancárias** (criar/editar/apagar, saldo calculado por conta,
+transferência entre contas), formulário de nova movimentação (com conta
+obrigatória e criação rápida de categoria própria embutida), histórico
+com filtros/paginação/ordenação (incluindo filtro por conta), edição via
+modal, exclusão com confirmação, logout, e uma página de **relatórios**
+(`relatorios.html`) com as três modalidades — automáticos, personalizado,
+comparativo — usando [Chart.js](https://www.chartjs.org/) via CDN para os
+gráficos. Sessão expirada (token vencido) redireciona automaticamente
+para a tela de login em ambas as páginas. Os itens "Pendências" e "Planos
+e Metas" já aparecem na sidebar, marcados como "em breve" — são as
+próximas fases.
 
 O contrato HTTP entre front e back (nomes de campo, formato das respostas,
 FormData sempre enviando valores como string) foi validado com chamadas
@@ -287,7 +327,25 @@ anteriores, não foi possível abrir um navegador de verdade neste ambiente
 (Chart.js) e a navegação entre abas precisam ser conferidos visualmente
 por você.**
 
-## Próximos passos sugeridos
+## Roadmap (fases em andamento)
+
+Combinado com o usuário: cada fase só entra em código depois de planejada
+e aprovada.
+
+- ✅ **Fase 1 — Sidebar + Contas bancárias** (v2.1.0): concluída.
+- ⏳ **Fase 2 — Divisão Início / Controle**: nova página de Início (resumo
+  + atalhos do dia a dia), página atual vira "Controle" (mais analítica).
+- ⏳ **Fase 3 — Pendências**: lançamentos futuros com vencimento e contas
+  fixas recorrentes (status pago/pendente).
+- ⏳ **Fase 4 — Planos e Metas**: metas de economia + quitação de dívidas
+  no mesmo sistema.
+- ⏳ **Protótipo visual**: decisão pendente entre manter o "livro-razão"
+  claro ou migrar para um dashboard escuro (referências anexadas pelo
+  usuário) — a decidir olhando um protótipo antes de aplicar em toda a
+  base.
+- Cartões de crédito: fora do escopo por enquanto (decisão do usuário).
+
+## Próximos passos técnicos
 
 1. Refresh token / expiração mais robusta (hoje o token expira em 60min,
    sem renovação — o usuário precisa logar de novo).

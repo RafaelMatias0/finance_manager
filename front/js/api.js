@@ -116,6 +116,27 @@ const Api = {
   apagarMovimentacao(id) {
     return requisitar("DELETE", `/movimentacoes/${id}`);
   },
+  // ---------- Contas ----------
+  contas() {
+    return requisitar("GET", "/contas");
+  },
+  criarConta(dados) {
+    return requisitar("POST", "/contas", { body: dados });
+  },
+  editarConta(id, dados) {
+    return requisitar("PATCH", `/contas/${id}`, { body: dados });
+  },
+  apagarConta(id) {
+    return requisitar("DELETE", `/contas/${id}`);
+  },
+  // ---------- Transferências ----------
+  transferencias() {
+    return requisitar("GET", "/transferencias");
+  },
+  criarTransferencia(dados) {
+    return requisitar("POST", "/transferencias", { body: dados });
+  },
+  // ---------- Relatórios ----------
   relatorioPersonalizado(filtros) {
     return requisitar("GET", "/relatorios/personalizado", { query: filtros });
   },
