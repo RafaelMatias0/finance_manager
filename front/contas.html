@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Contas — Cofre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-pagina="contas">
+
+<div id="app-shell" class="app-shell">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar__topo">
+      <button type="button" class="sidebar__toggle" data-acao="toggle-sidebar" aria-label="Recolher/expandir menu">☰</button>
+      <div class="sidebar__marca">
+        <span class="sidebar__selo">C</span>
+        <span class="sidebar__nome">Cofre</span>
+      </div>
+    </div>
+
+    <nav class="sidebar__nav">
+      <a href="index.html" class="sidebar__link" data-pagina="inicio">
+        <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></span>
+        <span class="sidebar__label">Início</span>
+      </a>
+      <a href="controle.html" class="sidebar__link" data-pagina="controle">
+        <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="7" cy="18" r="2"/></svg></span>
+        <span class="sidebar__label">Controle</span>
+      </a>
+      <a href="relatorios.html" class="sidebar__link" data-pagina="relatorios">
+        <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="4" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="20" y1="20" x2="20" y2="14"/></svg></span>
+        <span class="sidebar__label">Relatórios</span>
+      </a>
+      <a href="contas.html" class="sidebar__link" data-pagina="contas">
+        <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16" cy="14" r="1"/></svg></span>
+        <span class="sidebar__label">Contas</span>
+      </a>
+      <a href="pendencias.html" class="sidebar__link" data-pagina="pendencias">
+        <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+        <span class="sidebar__label">Pendências</span>
+      </a>
+      <span class="sidebar__link sidebar__link--desabilitado" title="Em breve">
+        <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span>
+        <span class="sidebar__label">Planos e Metas</span>
+        <span class="sidebar__selo-em-breve">em breve</span>
+      </span>
+    </nav>
+
+    <div class="sidebar__rodape">
+      <button id="btn-sair-sidebar" class="btn btn--fantasma btn--pequeno"><span class="rotulo-completo">Sair</span></button>
+    </div>
+  </aside>
+
+  <div class="app-shell__conteudo">
+    <header class="topo"></header>
+
+    <main class="tela-app">
+
+      <section class="painel painel--contas" id="painel-contas" aria-label="Contas bancárias">
+        <div class="painel__cabecalho">
+          <h2 class="painel__titulo">Contas</h2>
+          <div class="painel__acoes">
+            <button type="button" id="btn-abrir-transferencia" class="link-acao">transferir</button>
+            <button type="button" id="btn-nova-conta" class="link-acao">+ nova conta</button>
+          </div>
+        </div>
+        <div id="lista-contas" class="lista-contas"></div>
+        <p id="contas-vazio" class="estado-vazio oculto">Nenhuma conta cadastrada ainda. Crie a primeira pra poder lançar movimentações.</p>
+      </section>
+
+      <section class="painel painel--transferencias" aria-label="Histórico de transferências">
+        <h2 class="painel__titulo">Transferências</h2>
+        <div class="tabela-scroll">
+          <table class="tabela-historico">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>De</th>
+                <th>Para</th>
+                <th>Descrição</th>
+                <th class="alinhar-direita">Valor</th>
+              </tr>
+            </thead>
+            <tbody id="corpo-transferencias"></tbody>
+          </table>
+          <p id="transferencias-vazio" class="estado-vazio oculto">Nenhuma transferência feita ainda.</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div id="modal-form-conta" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-conta">
+  <div class="modal__conteudo">
+    <h2 class="painel__titulo" id="titulo-modal-conta">Nova conta</h2>
+    <form id="form-conta" class="formulario">
+      <p class="erro-formulario" id="erro-conta" role="alert"></p>
+      <input type="hidden" name="id" />
+      <label class="campo">
+        <span>Banco</span>
+        <input type="text" name="nome_banco" required maxlength="80" placeholder="Ex: Itaú" />
+      </label>
+      <label class="campo">
+        <span>Apelido (opcional)</span>
+        <input type="text" name="apelido" maxlength="80" placeholder="Ex: Conta Principal" />
+      </label>
+      <label class="campo">
+        <span>Saldo inicial</span>
+        <input type="number" name="saldo_inicial" step="0.01" value="0" />
+      </label>
+      <div class="modal__acoes">
+        <button type="button" id="btn-cancelar-conta" class="btn btn--fantasma">Cancelar</button>
+        <button type="submit" class="btn btn--principal">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="modal-transferencia" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-transferencia">
+  <div class="modal__conteudo">
+    <h2 class="painel__titulo" id="titulo-modal-transferencia">Transferir entre contas</h2>
+    <form id="form-transferencia" class="formulario">
+      <p class="erro-formulario" id="erro-transferencia" role="alert"></p>
+      <label class="campo">
+        <span>De</span>
+        <select name="conta_origem_id" id="select-conta-origem" required></select>
+      </label>
+      <label class="campo">
+        <span>Para</span>
+        <select name="conta_destino_id" id="select-conta-destino" required></select>
+      </label>
+      <label class="campo">
+        <span>Valor</span>
+        <input type="number" name="valor" step="0.01" min="0.01" required />
+      </label>
+      <label class="campo">
+        <span>Descrição</span>
+        <input type="text" name="descricao" maxlength="255" placeholder="Opcional" />
+      </label>
+      <label class="campo">
+        <span>Data</span>
+        <input type="date" name="data" required />
+      </label>
+      <div class="modal__acoes">
+        <button type="button" id="btn-cancelar-transferencia" class="btn btn--fantasma">Cancelar</button>
+        <button type="submit" class="btn btn--principal">Transferir</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="regiao-toast" class="regiao-toast" aria-live="polite"></div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/api.js"></script>
+<script src="js/contas.js"></script>
+<script src="js/sidebar.js"></script>
+</body>
+</html>

@@ -224,6 +224,129 @@ def gerar_relatorio_comparativo(
     return resultado
 
 
+def _mes_menos(referencia: date, n: int) -> date:
+    """Primeiro dia do mês, n meses antes do mês de `referencia`."""
+    total_meses = referencia.year * 12 + (referencia.month - 1) - n
+    ano, mes = divmod(total_meses, 12)
+    return date(ano, mes + 1, 1)
+
+
+def resumo_por_categoria(
+    db: Session,
+    usuario_id: uuid.UUID,
+    data_inicio: Optional[date] = None,
+    data_fim: Optional[date] = None,
+    tipo: Optional[models.TipoMovimentacao] = None,
+    meses_recentes: int = 0,
+) -> list[dict]:
+    """Agregado por categoria — total, quantidade, mínimo, média e máximo
+    das movimentações, mais o percentual de cada categoria dentro do total
+    do MESMO TIPO (só entre as categorias retornadas). Sem `data_inicio`/
+    `data_fim`, considera todo o histórico do usuário. Se `meses_recentes`
+    > 0, anexa a cada categoria o total em cada um dos últimos N meses
+    corridos (incluindo o atual).
+
+    Agregação feita em SQL (GROUP BY), não em Python — ao contrário de
+    `gerar_relatorio_basico`, aqui o período pode ser "desde sempre", então
+    carregar todas as movimentações pra memória não escala (mesmo padrão
+    de `calcular_saldos_contas` em app/contas.py)."""
+    query = (
+        db.query(
+            models.Categoria.id,
+            models.Categoria.nome,
+            models.Categoria.tipo,
+            func.sum(models.Movimentacao.valor),
+            func.count(models.Movimentacao.id),
+            func.min(models.Movimentacao.valor),
+            func.avg(models.Movimentacao.valor),
+            func.max(models.Movimentacao.valor),
+        )
+        .join(models.Categoria, models.Movimentacao.categoria_id == models.Categoria.id)
+        .filter(models.Movimentacao.usuario_id == usuario_id)
+    )
+    if data_inicio:
+        query = query.filter(models.Movimentacao.data >= data_inicio)
+    if data_fim:
+        query = query.filter(models.Movimentacao.data <= data_fim)
+    if tipo:
+        query = query.filter(models.Categoria.tipo == tipo)
+
+    linhas = query.group_by(models.Categoria.id, models.Categoria.nome, models.Categoria.tipo).all()
+
+    totais_por_tipo: dict = {}
+    for _, _, cat_tipo, total, *_resto in linhas:
+        totais_por_tipo[cat_tipo] = totais_por_tipo.get(cat_tipo, Decimal("0")) + total
+
+    resultado = []
+    for cat_id, nome, cat_tipo, total, quantidade, minimo, media, maximo in linhas:
+        total_tipo = totais_por_tipo.get(cat_tipo, Decimal("0"))
+        percentual = float(total / total_tipo * 100) if total_tipo > 0 else 0.0
+        resultado.append({
+            "categoria_id": str(cat_id),
+            "categoria_nome": nome,
+            "categoria_tipo": cat_tipo.value,
+            "total": _decimal_para_float(total),
+            "percentual": round(percentual, 2),
+            "quantidade": quantidade,
+            "minimo": _decimal_para_float(minimo),
+            "media": _decimal_para_float(media),
+            "maximo": _decimal_para_float(maximo),
+        })
+
+    if meses_recentes > 0:
+        _anexar_totais_mensais(db, usuario_id, resultado, meses_recentes, tipo)
+
+    resultado.sort(key=lambda r: (r["categoria_tipo"], -r["total"]))
+    return resultado
+
+
+def _anexar_totais_mensais(
+    db: Session,
+    usuario_id: uuid.UUID,
+    categorias: list[dict],
+    meses_recentes: int,
+    tipo: Optional[models.TipoMovimentacao],
+) -> None:
+    """Preenche `categorias[i]["mensal"]` com o total de cada categoria em
+    cada um dos últimos `meses_recentes` meses corridos (do mais antigo pro
+    mais recente, incluindo o mês atual). Meses sem movimentação entram
+    com total 0 (sem buraco), mesma ideia de `_grafico_diario`."""
+    if not categorias:
+        return
+
+    hoje = date.today()
+    meses = [_mes_menos(hoje, i) for i in range(meses_recentes - 1, -1, -1)]
+
+    query = (
+        db.query(
+            models.Movimentacao.categoria_id,
+            func.date_trunc("month", models.Movimentacao.data),
+            func.sum(models.Movimentacao.valor),
+        )
+        .filter(
+            models.Movimentacao.usuario_id == usuario_id,
+            models.Movimentacao.data >= meses[0],
+        )
+    )
+    if tipo:
+        query = query.join(models.Categoria).filter(models.Categoria.tipo == tipo)
+
+    linhas = query.group_by(
+        models.Movimentacao.categoria_id, func.date_trunc("month", models.Movimentacao.data)
+    ).all()
+
+    por_categoria_mes = {}
+    for cat_id, mes_trunc, total in linhas:
+        chave = (str(cat_id), mes_trunc.date().replace(day=1))
+        por_categoria_mes[chave] = _decimal_para_float(total)
+
+    for item in categorias:
+        item["mensal"] = [
+            {"mes": mes.isoformat()[:7], "total": por_categoria_mes.get((item["categoria_id"], mes), 0.0)}
+            for mes in meses
+        ]
+
+
 def periodo_semana_anterior(referencia: date) -> tuple[date, date]:
     """Segunda a domingo da semana que terminou antes de `referencia`.
     Rodando numa segunda de manhã, `referencia`=hoje(segunda) → retorna a

@@ -9,6 +9,13 @@ function formatarDataBR(isoDate) {
   return `${dia}/${mes}/${ano}`;
 }
 
+function formatarMesAno(mesIso) {
+  // mesIso no formato "AAAA-MM" (como vem de GET /relatorios/por-categoria)
+  const [ano, mes] = mesIso.split("-").map(Number);
+  const data = new Date(ano, mes - 1, 1);
+  return data.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
+}
+
 function hojeISO() {
   return new Date().toISOString().slice(0, 10);
 }

@@ -73,19 +73,22 @@
         <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></span>
         <span class="sidebar__label">Início</span>
       </a>
+      <a href="controle.html" class="sidebar__link" data-pagina="controle">
+        <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="7" cy="18" r="2"/></svg></span>
+        <span class="sidebar__label">Controle</span>
+      </a>
       <a href="relatorios.html" class="sidebar__link" data-pagina="relatorios">
         <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="4" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="20" y1="20" x2="20" y2="14"/></svg></span>
         <span class="sidebar__label">Relatórios</span>
       </a>
-      <button type="button" class="sidebar__link" id="link-contas-sidebar">
+      <a href="contas.html" class="sidebar__link" data-pagina="contas">
         <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16" cy="14" r="1"/></svg></span>
         <span class="sidebar__label">Contas</span>
-      </button>
-      <span class="sidebar__link sidebar__link--desabilitado" title="Em breve">
+      </a>
+      <a href="pendencias.html" class="sidebar__link" data-pagina="pendencias">
         <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
         <span class="sidebar__label">Pendências</span>
-        <span class="sidebar__selo-em-breve">em breve</span>
-      </span>
+      </a>
       <span class="sidebar__link sidebar__link--desabilitado" title="Em breve">
         <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span>
         <span class="sidebar__label">Planos e Metas</span>
@@ -99,274 +102,100 @@
   </aside>
 
   <div class="app-shell__conteudo">
-    <header class="topo">
-      <button type="button" class="topo__abrir-sidebar" data-acao="toggle-sidebar" aria-label="Abrir/recolher menu">☰</button>
-    </header>
+    <header class="topo"></header>
 
     <main id="tela-app" class="tela-app">
 
-      <section class="resumo" aria-label="Resumo financeiro">
-        <div class="resumo__item">
-          <span class="resumo__rotulo">Receitas</span>
-          <span class="resumo__valor valor--receita" id="valor-receitas">R$ 0,00</span>
-        </div>
-        <div class="resumo__item">
-          <span class="resumo__rotulo">Despesas</span>
-          <span class="resumo__valor valor--despesa" id="valor-despesas">R$ 0,00</span>
-        </div>
-        <div class="resumo__item resumo__item--saldo">
-          <span class="resumo__rotulo">Saldo</span>
-          <span class="resumo__valor resumo__valor--saldo" id="valor-saldo">R$ 0,00</span>
-        </div>
-      </section>
+      <div class="grid-inicio">
 
-      <section class="painel painel--contas" id="painel-contas" aria-label="Contas bancárias">
-        <div class="painel__cabecalho">
-          <h2 class="painel__titulo">Contas</h2>
-          <div style="display:flex; gap:0.9rem;">
-            <button type="button" id="btn-abrir-transferencia" class="link-acao">transferir</button>
-            <button type="button" id="btn-nova-conta" class="link-acao">+ nova conta</button>
-          </div>
-        </div>
-        <div id="lista-contas" class="lista-contas"></div>
-        <p id="contas-vazio" class="estado-vazio oculto">Nenhuma conta cadastrada ainda. Crie a primeira pra poder lançar movimentações.</p>
-      </section>
-
-      <div class="grade-principal">
-
-        <section class="painel painel--form" aria-label="Nova movimentação">
-          <h2 class="painel__titulo">Nova movimentação</h2>
-          <form id="form-movimentacao" class="formulario">
-            <p class="erro-formulario" id="erro-movimentacao" role="alert"></p>
-
-            <div class="campo-grupo-tipo" role="radiogroup" aria-label="Tipo">
-              <label class="opcao-tipo">
-                <input type="radio" name="tipo" value="receita" checked />
-                <span>Receita</span>
-              </label>
-              <label class="opcao-tipo">
-                <input type="radio" name="tipo" value="despesa" />
-                <span>Despesa</span>
-              </label>
+        <div class="grid-inicio__linha">
+          <section class="painel" aria-label="Pendências">
+            <div class="painel__cabecalho">
+              <h2 class="painel__titulo">Pendências</h2>
             </div>
+            <div id="resumo-pendencias" class="resumo-pendencias-inicio"></div>
+            <p id="resumo-pendencias-vazio" class="estado-vazio oculto">Nenhuma pendência no momento.</p>
+            <a href="pendencias.html" class="link-acao">Gerenciar pendências →</a>
+          </section>
 
-            <label class="campo">
-              <span>Valor</span>
-              <input type="number" name="valor" step="0.01" min="0.01" required placeholder="0,00" />
-            </label>
+          <section class="painel" aria-label="Saldo por conta">
+            <div class="painel__cabecalho">
+              <h2 class="painel__titulo">Contas</h2>
+            </div>
+            <div id="resumo-contas" class="resumo-contas-inicio"></div>
+            <p id="resumo-contas-vazio" class="estado-vazio oculto">Nenhuma conta cadastrada.</p>
+            <a href="contas.html" class="link-acao">Gerenciar contas →</a>
+          </section>
+        </div>
 
-            <label class="campo">
-              <span>Categoria</span>
-              <select name="categoria_id" id="select-categoria" required></select>
-            </label>
+        <div class="grid-inicio__linha grid-inicio__linha--form">
+          <section class="painel painel--form" aria-label="Nova movimentação">
+            <h2 class="painel__titulo">Nova movimentação</h2>
+            <form id="form-movimentacao" class="formulario">
+              <p class="erro-formulario" id="erro-movimentacao" role="alert"></p>
 
-            <button type="button" id="btn-toggle-nova-categoria" class="link-acao">+ nova categoria</button>
+              <div class="campo-grupo-tipo" role="radiogroup" aria-label="Tipo">
+                <label class="opcao-tipo">
+                  <input type="radio" name="tipo" value="receita" checked />
+                  <span>Receita</span>
+                </label>
+                <label class="opcao-tipo">
+                  <input type="radio" name="tipo" value="despesa" />
+                  <span>Despesa</span>
+                </label>
+              </div>
 
-            <div id="bloco-nova-categoria" class="bloco-nova-categoria oculto">
               <label class="campo">
-                <span>Nome da categoria</span>
-                <input type="text" id="input-nome-categoria" maxlength="80" placeholder="Ex: Freelas" />
+                <span>Valor</span>
+                <input type="number" name="valor" step="0.01" min="0.01" required placeholder="0,00" />
               </label>
-              <button type="button" id="btn-salvar-categoria" class="btn btn--secundario btn--pequeno">Salvar categoria</button>
+
+              <label class="campo">
+                <span>Categoria</span>
+                <select name="categoria_id" id="select-categoria" required></select>
+              </label>
+
+              <button type="button" id="btn-toggle-nova-categoria" class="link-acao">+ nova categoria</button>
+
+              <div id="bloco-nova-categoria" class="bloco-nova-categoria oculto">
+                <label class="campo">
+                  <span>Nome da categoria</span>
+                  <input type="text" id="input-nome-categoria" maxlength="80" placeholder="Ex: Freelas" />
+                </label>
+                <button type="button" id="btn-salvar-categoria" class="btn btn--secundario btn--pequeno">Salvar categoria</button>
+              </div>
+
+              <label class="campo">
+                <span>Conta</span>
+                <select name="conta_id" id="select-conta" required></select>
+              </label>
+
+              <label class="campo">
+                <span>Descrição</span>
+                <input type="text" name="descricao" maxlength="255" placeholder="Opcional" />
+              </label>
+
+              <label class="campo">
+                <span>Data</span>
+                <input type="date" name="data" required />
+              </label>
+
+              <button type="submit" class="btn btn--principal">Adicionar</button>
+            </form>
+          </section>
+
+          <section class="cartao-em-breve" aria-label="Enviar arquivo (em breve)">
+            <div class="cartao-em-breve__cabecalho">
+              <span class="cartao-em-breve__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M6 10l6-6 6 6"/><path d="M4 20h16"/></svg></span>
+              <h2 class="painel__titulo cartao-em-breve__titulo">Enviar arquivo</h2>
+              <span class="selo-em-breve">em breve</span>
             </div>
-
-            <label class="campo">
-              <span>Conta</span>
-              <select name="conta_id" id="select-conta" required></select>
-            </label>
-
-            <label class="campo">
-              <span>Descrição</span>
-              <input type="text" name="descricao" maxlength="255" placeholder="Opcional" />
-            </label>
-
-            <label class="campo">
-              <span>Data</span>
-              <input type="date" name="data" required />
-            </label>
-
-            <button type="submit" class="btn btn--principal">Adicionar</button>
-          </form>
-        </section>
-
-        <section class="painel painel--historico" aria-label="Histórico de movimentações">
-          <div class="painel__cabecalho">
-            <h2 class="painel__titulo">Histórico</h2>
-            <button id="btn-toggle-filtros" class="link-acao">Filtros</button>
-          </div>
-
-          <div id="bloco-filtros" class="bloco-filtros oculto">
-            <label class="campo campo--compacto">
-              <span>Tipo</span>
-              <select id="filtro-tipo">
-                <option value="">Todos</option>
-                <option value="receita">Receita</option>
-                <option value="despesa">Despesa</option>
-              </select>
-            </label>
-            <label class="campo campo--compacto">
-              <span>Categoria</span>
-              <select id="filtro-categoria">
-                <option value="">Todas</option>
-              </select>
-            </label>
-            <label class="campo campo--compacto">
-              <span>Conta</span>
-              <select id="filtro-conta">
-                <option value="">Todas</option>
-              </select>
-            </label>
-            <label class="campo campo--compacto">
-              <span>De</span>
-              <input type="date" id="filtro-data-inicio" />
-            </label>
-            <label class="campo campo--compacto">
-              <span>Até</span>
-              <input type="date" id="filtro-data-fim" />
-            </label>
-            <label class="campo campo--compacto">
-              <span>Ordenar por</span>
-              <select id="filtro-ordenar-por">
-                <option value="data">Data</option>
-                <option value="valor">Valor</option>
-                <option value="criado_em">Criado em</option>
-              </select>
-            </label>
-            <label class="campo campo--compacto">
-              <span>Ordem</span>
-              <select id="filtro-ordem">
-                <option value="desc">Decrescente</option>
-                <option value="asc">Crescente</option>
-              </select>
-            </label>
-            <div class="bloco-filtros__acoes">
-              <button id="btn-aplicar-filtros" class="btn btn--secundario btn--pequeno">Aplicar</button>
-              <button id="btn-limpar-filtros" class="btn btn--fantasma btn--pequeno">Limpar</button>
-            </div>
-          </div>
-
-          <div class="tabela-scroll">
-            <table class="tabela-historico">
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Descrição</th>
-                  <th>Categoria</th>
-                  <th>Conta</th>
-                  <th class="alinhar-direita">Valor</th>
-                  <th class="alinhar-direita">Ações</th>
-                </tr>
-              </thead>
-              <tbody id="corpo-historico">
-              </tbody>
-            </table>
-            <p id="historico-vazio" class="estado-vazio oculto">
-              Nenhuma movimentação por aqui ainda. Adicione a primeira ao lado.
-            </p>
-          </div>
-
-          <div class="paginacao">
-            <button id="btn-pagina-anterior" class="btn btn--fantasma btn--pequeno" disabled>← Anterior</button>
-            <span id="texto-paginacao" class="paginacao__texto"></span>
-            <button id="btn-pagina-proxima" class="btn btn--fantasma btn--pequeno" disabled>Próxima →</button>
-          </div>
-        </section>
+            <p class="cartao-em-breve__descricao">Importação de extratos e comprovantes.</p>
+          </section>
+        </div>
 
       </div>
     </main>
-  </div>
-</div>
-
-<div id="modal-edicao" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="modal-edicao-titulo">
-  <div class="modal__conteudo">
-    <h2 id="modal-edicao-titulo" class="painel__titulo">Editar movimentação</h2>
-    <form id="form-edicao" class="formulario">
-      <p class="erro-formulario" id="erro-edicao" role="alert"></p>
-      <input type="hidden" name="id" />
-      <label class="campo">
-        <span>Valor</span>
-        <input type="number" name="valor" step="0.01" min="0.01" required />
-      </label>
-      <label class="campo">
-        <span>Categoria</span>
-        <select name="categoria_id" id="select-categoria-edicao" required></select>
-      </label>
-      <label class="campo">
-        <span>Conta</span>
-        <select name="conta_id" id="select-conta-edicao" required></select>
-      </label>
-      <label class="campo">
-        <span>Descrição</span>
-        <input type="text" name="descricao" maxlength="255" />
-      </label>
-      <label class="campo">
-        <span>Data</span>
-        <input type="date" name="data" required />
-      </label>
-      <div class="modal__acoes">
-        <button type="button" id="btn-cancelar-edicao" class="btn btn--fantasma">Cancelar</button>
-        <button type="submit" class="btn btn--principal">Salvar</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div id="modal-form-conta" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-conta">
-  <div class="modal__conteudo">
-    <h2 class="painel__titulo" id="titulo-modal-conta">Nova conta</h2>
-    <form id="form-conta" class="formulario">
-      <p class="erro-formulario" id="erro-conta" role="alert"></p>
-      <input type="hidden" name="id" />
-      <label class="campo">
-        <span>Banco</span>
-        <input type="text" name="nome_banco" required maxlength="80" placeholder="Ex: Itaú" />
-      </label>
-      <label class="campo">
-        <span>Apelido (opcional)</span>
-        <input type="text" name="apelido" maxlength="80" placeholder="Ex: Conta Principal" />
-      </label>
-      <label class="campo">
-        <span>Saldo inicial</span>
-        <input type="number" name="saldo_inicial" step="0.01" value="0" />
-      </label>
-      <div class="modal__acoes">
-        <button type="button" id="btn-cancelar-conta" class="btn btn--fantasma">Cancelar</button>
-        <button type="submit" class="btn btn--principal">Salvar</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div id="modal-transferencia" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-transferencia">
-  <div class="modal__conteudo">
-    <h2 class="painel__titulo" id="titulo-modal-transferencia">Transferir entre contas</h2>
-    <form id="form-transferencia" class="formulario">
-      <p class="erro-formulario" id="erro-transferencia" role="alert"></p>
-      <label class="campo">
-        <span>De</span>
-        <select name="conta_origem_id" id="select-conta-origem" required></select>
-      </label>
-      <label class="campo">
-        <span>Para</span>
-        <select name="conta_destino_id" id="select-conta-destino" required></select>
-      </label>
-      <label class="campo">
-        <span>Valor</span>
-        <input type="number" name="valor" step="0.01" min="0.01" required />
-      </label>
-      <label class="campo">
-        <span>Descrição</span>
-        <input type="text" name="descricao" maxlength="255" placeholder="Opcional" />
-      </label>
-      <label class="campo">
-        <span>Data</span>
-        <input type="date" name="data" required />
-      </label>
-      <div class="modal__acoes">
-        <button type="button" id="btn-cancelar-transferencia" class="btn btn--fantasma">Cancelar</button>
-        <button type="submit" class="btn btn--principal">Transferir</button>
-      </div>
-    </form>
   </div>
 </div>
 

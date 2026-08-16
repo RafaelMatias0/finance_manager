@@ -17,6 +17,16 @@ modelagem do banco de dados. O front-end (HTML/CSS/JS puro) será feito por
 - **Transferencia** — id, usuario_id, conta_origem_id, conta_destino_id,
   valor (Numeric 12,2), descricao (opcional), data, criado_em. Movimento
   entre duas contas do próprio usuário — não é receita nem despesa.
+- **Pendencia** — id, usuario_id, descricao, valor, categoria_id, conta_id
+  (opcional), recorrente (bool), dia_vencimento (1-31, se recorrente),
+  data_vencimento (se avulsa), ativa (bool), criado_em, atualizado_em.
+  "Definição" de uma conta a pagar/receber — recorrente (aluguel,
+  assinaturas: um vencimento por mês) ou avulsa (um vencimento único).
+  Não guarda status pago/pendente — isso é sempre calculado (ver decisão
+  abaixo).
+- **Movimentacao** ganhou dois campos opcionais: `pendencia_id` e
+  `pendencia_referencia` — preenchidos só quando a movimentação nasceu de
+  "marcar uma pendência como paga" (ver abaixo).
 
 ### Decisões de design
 
@@ -51,6 +61,35 @@ modelagem do banco de dados. O front-end (HTML/CSS/JS puro) será feito por
 - **Saldo de conta nunca é persistido** — mesma lógica do saldo geral do
   usuário: é sempre `saldo_inicial + receitas - despesas + transferências
   recebidas - transferências enviadas`, calculado na hora.
+- **Pendência não guarda status pago/pendente** — mesmo princípio do
+  saldo: cada vencimento (mês, pra recorrente; a data única, pra avulsa)
+  é considerado pago quando existe uma `Movimentacao` com
+  `pendencia_id`==aquela pendência e `pendencia_referencia`==aquele
+  vencimento específico. **Marcar como paga cria a Movimentação de
+  verdade** (rota `POST /pendencias/{id}/pagar`) — não existe um "toggle"
+  de status desacoplado do histórico real. `pendencia_referencia` é
+  separado da `data` real do pagamento de propósito: permite pagar
+  atrasado sem perder a informação de qual vencimento está sendo quitado.
+  Um índice único parcial em `(pendencia_id, pendencia_referencia)`
+  trava, no banco, contra pagar o mesmo vencimento duas vezes.
+- **`Pendencia` sem campo `tipo` redundante** — mesmo princípio de
+  `Movimentacao`: o tipo vem de `pendencia.categoria.tipo`.
+- **`Pendencia.conta_id` é opcional** (ao contrário de
+  `Movimentacao.conta_id`, que é obrigatório) — é só uma sugestão de
+  conta padrão pro momento de pagar; a mesma pendência pode acabar sendo
+  paga de contas diferentes em momentos diferentes, e a conta de fato
+  usada é escolhida (obrigatoriamente) na hora de marcar como paga.
+- **Relações protegidas por `RESTRICT` usam `passive_deletes=True`** —
+  sem isso, o SQLAlchemy tenta "desvincular" as linhas filhas (setar a FK
+  para `NULL`) *antes* de apagar o pai, em vez de deixar o `ON DELETE
+  RESTRICT` do banco barrar a operação. Passava despercebido em
+  `Categoria`/`Conta` porque `movimentacoes.categoria_id`/`conta_id` são
+  `NOT NULL` (a tentativa de "desvincular" falhava por outro motivo, e o
+  resultado observável — `409` — coincidia); ficou visível de verdade em
+  `Pendencia`, onde `movimentacoes.pendencia_id` é opcional: sem
+  `passive_deletes=True`, apagar uma pendência com pagamentos já feitos
+  simplesmente funcionava, "descolando" o histórico sem avisar ninguém.
+  Corrigido nas três relações.
 
 ## Estrutura do projeto
 
@@ -59,16 +98,20 @@ gerenciador-financas/
 ├── app/
 │   ├── __init__.py
 │   ├── database.py      # engine, SessionLocal, Base, get_db()
-│   ├── models.py         # Usuario, Categoria, Conta, Movimentacao, Transferencia, Relatorio, enums
+│   ├── models.py         # Usuario, Categoria, Conta, Movimentacao, Transferencia, Pendencia, Relatorio, enums
 │   ├── schemas.py        # schemas Pydantic (Create/Update/Out) de cada entidade
 │   ├── security.py       # hash de senha (bcrypt) + JWT (criar/validar token)
 │   ├── contas.py          # cálculo de saldo por conta (individual e em lote)
-│   ├── relatorios.py      # lógica de agregação dos relatórios (personalizado/comparativo/automático)
+│   ├── pendencias.py      # cálculo de ciclos pendentes/atrasados de cada pendência
+│   ├── relatorios.py      # lógica de agregação dos relatórios (personalizado/comparativo/automático/por-categoria)
 │   ├── scheduler.py       # APScheduler: jobs semanal (seg 01:00) e mensal (dia 1, 01:00)
 │   ├── main.py             # app FastAPI: rotas, CORS, start/stop do scheduler
 │   └── seed.py            # popula categorias padrão (Salário, Alimentação, etc.)
 ├── front/
-│   ├── index.html         # single-page: telas de auth + dashboard
+│   ├── index.html         # single-page: tela de auth + Início (grid: pendências, contas, nova movimentação)
+│   ├── controle.html      # histórico completo + análise por categoria (gráfico e tabela)
+│   ├── contas.html        # gestão de contas bancárias e transferências
+│   ├── pendencias.html    # contas recorrentes/avulsas: criar, editar, marcar como paga
 │   ├── relatorios.html    # relatórios: automáticos, personalizado, comparativo
 │   ├── css/
 │   │   ├── style.css       # design "livro-razão" (ver seção Front-end)
@@ -78,14 +121,18 @@ gerenciador-financas/
 │       ├── utils.js        # formatação de moeda/data, toast (compartilhado)
 │       ├── api.js          # wrapper de fetch: token, erros, endpoints
 │       ├── sidebar.js      # sidebar recolhível compartilhada entre páginas logadas
-│       ├── app.js          # lógica do dashboard: forms, tabela, paginação, modais, contas, transferência
+│       ├── app.js          # lógica do Início: nova movimentação, resumo de contas e pendências
+│       ├── controle.js     # histórico (filtros/paginação/edição) + análise por categoria
+│       ├── contas.js       # criar/editar/apagar conta, transferências e o histórico delas
+│       ├── pendencias.js   # criar/editar/apagar/pausar pendência, marcar ciclo como pago
 │       └── relatorios.js   # lógica da página de relatórios (usa Chart.js via CDN)
 ├── alembic/
 │   ├── env.py             # já configurado para ler DATABASE_URL e os models
-│   └── versions/          # inclui a migração da tabela `relatorios`
+│   └── versions/          # inclui a migração da tabela `relatorios` e a de `pendencias`
 ├── docker-compose.yml     # sobe o PostgreSQL local (porta 5433)
 ├── test_jwt.py            # bateria de testes automatizados: auth, CRUD, paginação
 ├── test_relatorios.py     # bateria de testes automatizados: relatórios
+├── test_pendencias.py     # bateria de testes automatizados: pendências
 ├── alembic.ini
 ├── requirements.txt
 ├── .env.example
@@ -172,7 +219,12 @@ rota protegida extrai o usuário logado do token (`Authorization: Bearer
 | DELETE | `/movimentacoes/{id}` | sim | Remove movimentação (só se for do usuário logado — senão `404`) |
 | GET | `/transferencias` | sim | Histórico de transferências entre contas do usuário logado |
 | POST | `/transferencias` | sim | Transfere valor entre duas contas próprias (não é receita nem despesa) |
-| GET | `/saldo` | sim | Total de receitas, despesas e saldo geral do usuário logado (soma os saldos iniciais de todas as contas) |
+| GET | `/pendencias` | sim | Lista as pendências do usuário logado, cada uma com `ciclos` (vencimentos ainda sem pagamento, status `atrasada`/`a_vencer`) já calculado |
+| POST | `/pendencias` | sim | Cria pendência (recorrente: `dia_vencimento`; avulsa: `data_vencimento`) |
+| PATCH | `/pendencias/{id}` | sim | Edita pendência própria (campos opcionais — inclui pausar/reativar via `ativa`) |
+| DELETE | `/pendencias/{id}` | sim | Remove pendência própria; `409` se houver pagamentos (Movimentações) vinculados |
+| POST | `/pendencias/{id}/pagar` | sim | Marca um vencimento como pago — cria a Movimentação de verdade, vinculada; `409` se esse vencimento já foi pago, `422` se a data não corresponde a um ciclo pendente real |
+| GET | `/saldo` | sim | Total de receitas, despesas e saldo geral do usuário logado (soma os saldos iniciais de todas as contas). Não é mais consumida pelo front-end no momento — o Início mostra saldo por conta em vez do total geral (ver Roadmap) |
 
 No Swagger (`/docs`), use o botão **Authorize** e informe o email/senha
 cadastrados — ele já fala o protocolo OAuth2 Password que a rota
@@ -185,13 +237,52 @@ histórico entre usuários, uma tentativa de usar categoria de outro usuário
 parcial via PATCH, o bloqueio de editar categoria global ou de outro
 usuário (404), paginação (`skip`/`limit`) e ordenação (`ordenar_por`/`ordem`,
 incluindo validação de valor inválido → 422) — foi testado de ponta a ponta
-neste ambiente (34 casos, todos passando). O script fica em `test_jwt.py`
+neste ambiente (36 casos, todos passando). O script fica em `test_jwt.py`
 na raiz do projeto, caso queira rodar de novo depois de alguma mudança.
 
 **Nota sobre a resposta de `GET /movimentacoes`**: agora vem paginada —
 `{"total": N, "skip": ..., "limit": ..., "itens": [...]}` — em vez de uma
 lista simples. Se você já tinha algum teste manual esperando uma lista
 direta, ajuste para ler `itens`.
+
+## Pendências
+
+Contas a pagar/receber — recorrentes (aluguel, assinaturas: um
+vencimento por mês) ou avulsas (um vencimento único). `GET /pendencias`
+calcula, pra cada uma, os **ciclos** ainda sem pagamento:
+
+- **Recorrente**: um vencimento por mês, do mês em que a pendência foi
+  criada até o mês atual (inclusive) — não retroage a antes da criação,
+  nem antecipa meses futuros. Dias que não existem no mês (ex: 31 em
+  fevereiro) caem pro último dia do mês.
+- **Avulsa**: um único vencimento, a `data_vencimento`.
+- Cada vencimento é `"atrasada"` (já passou) ou `"a_vencer"` (ainda não).
+  Se o usuário ficar meses sem marcar uma recorrente como paga, cada mês
+  aparece como um ciclo atrasado **separado** — a dívida acumulada fica
+  visível, não é substituída pelo vencimento mais recente.
+
+**"Marcar como paga" cria uma Movimentação de verdade** (`POST
+/pendencias/{id}/pagar`, exige `data_vencimento` — qual ciclo — e
+`conta_id`; `valor`/`descricao`/`data` são opcionais, com default o
+valor/descrição da pendência e a data de hoje). Não existe "desmarcar
+como paga": pra isso, apague a Movimentação gerada pela rota de sempre
+(`DELETE /movimentacoes/{id}`) — como o vínculo é só uma referência
+(`pendencia_id`/`pendencia_referencia`), apagar a Movimentação faz o
+ciclo voltar a aparecer como pendente.
+
+### Testes das pendências
+
+`test_pendencias.py` cobre: avulsa a vencer/atrasada/paga, recorrente com
+múltiplos meses de atraso acumulado (aparecendo como ciclos separados),
+pagar cria a Movimentação certa (valor, conta, vínculo), bloqueio de
+pagar o mesmo ciclo duas vezes (`409`) e de pagar uma data que não é um
+ciclo real (`422`), `DELETE` bloqueado com histórico (`409`) e liberado
+sem histórico (`204`), e isolamento entre usuários. Uma parte (o atraso
+acumulado) não dá pra simular só com chamadas HTTP dentro do mesmo
+minuto — o script acessa o banco diretamente (reaproveitando
+`app.database`/`app.models`, que já são do próprio projeto) só pra
+"voltar no tempo" o `criado_em` de uma pendência recém-criada; todo o
+resto é HTTP puro, como os demais testes. **25/25 passando.**
 
 ## Front-end
 
@@ -217,18 +308,30 @@ fechamento de conta.
 
 **O que tem implementado:** cadastro/login, sidebar recolhível compartilhada
 entre as páginas logadas (item ativo destacado, estado colapsado
-persistido), tela com saldo (receitas, despesas, saldo), painel de
-**contas bancárias** (criar/editar/apagar, saldo calculado por conta,
-transferência entre contas), formulário de nova movimentação (com conta
-obrigatória e criação rápida de categoria própria embutida), histórico
-com filtros/paginação/ordenação (incluindo filtro por conta), edição via
-modal, exclusão com confirmação, logout, e uma página de **relatórios**
-(`relatorios.html`) com as três modalidades — automáticos, personalizado,
-comparativo — usando [Chart.js](https://www.chartjs.org/) via CDN para os
-gráficos. Sessão expirada (token vencido) redireciona automaticamente
-para a tela de login em ambas as páginas. Os itens "Pendências" e "Planos
-e Metas" já aparecem na sidebar, marcados como "em breve" — são as
-próximas fases.
+persistido, um único botão de recolher/expandir — vive na própria
+sidebar). A página **Início** (`index.html`) é o resumo/atalhos do dia a
+dia: grid com card de pendências (as mais urgentes, só leitura), card de
+saldo por conta (só leitura), o formulário de nova movimentação (com
+conta obrigatória e criação rápida de categoria própria embutida) e um
+placeholder "em breve" (envio de arquivo, ainda sem funcionalidade). A
+página **Controle** (`controle.html`) é a mais analítica: o histórico
+completo (filtros/paginação/ordenação, edição via modal, exclusão com
+confirmação), um gráfico de gastos por categoria do mês atual, e uma
+tabela-resumo por categoria (total, % do tipo, mínimo/média/máximo e a
+evolução dos últimos 3 meses). A página **Contas** (`contas.html`)
+concentra a gestão de **contas bancárias** (criar/editar/apagar, saldo
+calculado por conta) e **transferências** entre contas, incluindo o
+histórico das transferências já feitas. A página **Pendências**
+(`pendencias.html`) lista contas recorrentes e avulsas com seus
+vencimentos pendentes/atrasados, permite criar/editar/pausar/apagar, e
+marcar cada vencimento como pago (confirmando conta/valor/data). E uma
+página de **relatórios** (`relatorios.html`) com as três modalidades —
+automáticos, personalizado, comparativo — usando
+[Chart.js](https://www.chartjs.org/) via CDN para os gráficos (usado
+também em Controle, pro gráfico de categoria). Sessão
+expirada (token vencido) redireciona automaticamente para a tela de login
+em todas as páginas. O item "Planos e Metas" já aparece na sidebar,
+marcado como "em breve" — é a próxima fase.
 
 O contrato HTTP entre front e back (nomes de campo, formato das respostas,
 FormData sempre enviando valores como string) foi validado com chamadas
@@ -295,12 +398,34 @@ um gráfico de linhas com o total diário de cada uma. O resto depende do
   categoria isolada no total daquele tipo no período, e participação das
   duas *somadas* no mesmo total.
 
+### Por categoria
+
+`GET /relatorios/por-categoria?data_inicio=...&data_fim=...&tipo=...&meses_recentes=...`
+
+Agregado por categoria — todos os parâmetros são opcionais. Sem
+`data_inicio`/`data_fim`, considera todo o histórico do usuário logado.
+Pra cada categoria com movimentação no período: `total`, `percentual`
+(dentro do total do MESMO TIPO, só entre as categorias retornadas),
+`quantidade`, `minimo`, `media`, `maximo`. Com `meses_recentes=N`, cada
+categoria ganha também `mensal`: o total dela em cada um dos últimos N
+meses corridos (incluindo o atual), do mais antigo pro mais recente.
+
+Usada de duas formas na página **Controle**: o gráfico de pizza chama com
+`data_inicio`/`data_fim` do mês corrente e `tipo=despesa`; a tabela-resumo
+chama sem período (histórico completo) e com `meses_recentes=3`.
+
+**Decisão de design**: a agregação é feita em SQL (`GROUP BY`), não
+carregando as movimentações pra memória como `/relatorios/personalizado`
+faz — aqui o período pode ser "desde sempre", então precisa escalar
+(mesmo padrão de `calcular_saldos_contas` em `app/contas.py`).
+
 ### Rotas de relatório
 
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/relatorios/personalizado` | Relatório sob demanda (não fica salvo) |
 | GET | `/relatorios/comparativo` | Comparação entre duas categorias (não fica salvo) |
+| GET | `/relatorios/por-categoria` | Agregado por categoria: total, %, mín/média/máx e, opcionalmente (`meses_recentes`), quebra mensal — usada pelo gráfico e pela tabela de Controle |
 | GET | `/relatorios` | Lista os relatórios automáticos salvos do usuário |
 | GET | `/relatorios/{id}` | Um relatório automático salvo específico |
 | POST | `/relatorios/gerar-agora?tipo=` | Gera um automático na hora (teste/demonstração) |
@@ -314,10 +439,13 @@ Todas exigem token, e um usuário nunca vê relatório/categoria de outro
 conhecidos e confere a matemática das agregações **à mão** (não só que a
 rota responde 200) — histórico, saldo, gráfico diário dia a dia, percentual
 de participação, diferença/soma no comparativo, participação individual e
-combinada. Também cobre os erros (`data_fim` antes de `data_inicio`,
-categorias iguais no comparativo, categoria inexistente/de outro usuário) e
-o ciclo gerar-agora → listar → obter → isolamento entre usuários.
-**45/45 passando.**
+combinada, e (novo) total/%/mín/média/máx e quebra mensal de
+`/relatorios/por-categoria` — essa última com datas relativas a "hoje"
+(calculadas no próprio teste, independente da implementação), já que a
+quebra mensal depende da data de execução. Também cobre os erros
+(`data_fim` antes de `data_inicio`, categorias iguais no comparativo,
+categoria inexistente/de outro usuário) e o ciclo gerar-agora → listar →
+obter → isolamento entre usuários. **62/62 passando.**
 
 O front-end (`relatorios.js`) foi validado com um teste de contrato HTTP
 (chamadas reais contra a API, conferindo que todo campo que o JS lê
@@ -332,11 +460,23 @@ por você.**
 Combinado com o usuário: cada fase só entra em código depois de planejada
 e aprovada.
 
-- ✅ **Fase 1 — Sidebar + Contas bancárias** (v2.1.0): concluída.
-- ⏳ **Fase 2 — Divisão Início / Controle**: nova página de Início (resumo
-  + atalhos do dia a dia), página atual vira "Controle" (mais analítica).
-- ⏳ **Fase 3 — Pendências**: lançamentos futuros com vencimento e contas
-  fixas recorrentes (status pago/pendente).
+- ✅ **Fase 1 — Sidebar + Contas bancárias** (v2.1.0): concluída. Refinada
+  depois: contas/transferências ganharam página própria (`contas.html`),
+  o Início passou a mostrar só um resumo de saldo por conta, e sobrou
+  apenas um botão de recolher/expandir a sidebar (o duplicado no topo do
+  conteúdo foi removido).
+- ✅ **Fase 2 — Divisão Início / Controle** (v2.2.0): concluída. Início
+  ficou só com resumo/atalhos (saldo por conta, nova movimentação);
+  Controle (`controle.html`, nova) ganhou o histórico completo + análise
+  por categoria (gráfico do mês, tabela com total/%/mín/média/máx/últimos
+  3 meses) — rota nova `GET /relatorios/por-categoria` no backend.
+- ✅ **Fase 3 — Pendências** (v2.3.0): concluída. Nova tabela `Pendencia`
+  (recorrente ou avulsa) — status pago/pendente nunca é guardado, sempre
+  calculado a partir das Movimentações vinculadas; marcar como paga cria
+  a Movimentação de verdade. Página nova `pendencias.html`, card ativado
+  no grid do Início, rotas `GET/POST/PATCH/DELETE /pendencias` + `POST
+  /pendencias/{id}/pagar`. Sem subcategorias ainda (fora de escopo desde
+  a Fase 2, adiado pra mini-fase própria).
 - ⏳ **Fase 4 — Planos e Metas**: metas de economia + quitação de dívidas
   no mesmo sistema.
 - ⏳ **Protótipo visual**: decisão pendente entre manter o "livro-razão"

@@ -15,19 +15,29 @@ Estrutura:
   usuário. Fica fora de Movimentacao de propósito — não é receita nem
   despesa, então não deve aparecer nos relatórios (que derivam o tipo
   a partir de Categoria.tipo).
+- Pendencia: "definição" de uma conta a pagar/receber — recorrente
+  (aluguel, assinaturas, vencimento mensal) ou avulsa (um vencimento
+  único). Não guarda status pago/pendente: isso é sempre calculado a
+  partir de existir ou não uma Movimentacao vinculada (campo
+  Movimentacao.pendencia_id) a um vencimento (Movimentacao.
+  pendencia_referencia) específico — mesmo princípio de "nada calculável
+  vira tabela própria" já usado pro saldo.
 """
 import enum
 import uuid
 from datetime import datetime, date
 
 from sqlalchemy import (
+    Boolean,
     Column,
     String,
     ForeignKey,
+    Integer,
     Numeric,
     Date,
     DateTime,
     Enum as SAEnum,
+    Index,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -69,6 +79,9 @@ class Usuario(Base):
     transferencias = relationship(
         "Transferencia", back_populates="usuario", cascade="all, delete-orphan"
     )
+    pendencias = relationship(
+        "Pendencia", back_populates="usuario", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Usuario id={self.id} email={self.email}>"
@@ -97,7 +110,13 @@ class Categoria(Base):
     criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     usuario = relationship("Usuario", back_populates="categorias")
-    movimentacoes = relationship("Movimentacao", back_populates="categoria")
+    # passive_deletes=True: deixa o RESTRICT do banco decidir (409 na
+    # exclusão se houver movimentações vinculadas). Sem isso, o
+    # SQLAlchemy tenta "desvincular" as movimentações (settar
+    # categoria_id = NULL) antes do delete — e só não quebra hoje porque
+    # a coluna é NOT NULL (faz a mesma coisa dar errado por outro
+    # motivo). Ver Pendencia.pagamentos, onde isso quebrava de verdade.
+    movimentacoes = relationship("Movimentacao", back_populates="categoria", passive_deletes=True)
 
     def __repr__(self) -> str:
         return f"<Categoria id={self.id} nome={self.nome} tipo={self.tipo}>"
@@ -123,7 +142,7 @@ class Conta(Base):
     criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     usuario = relationship("Usuario", back_populates="contas")
-    movimentacoes = relationship("Movimentacao", back_populates="conta")
+    movimentacoes = relationship("Movimentacao", back_populates="conta", passive_deletes=True)
 
     def __repr__(self) -> str:
         return f"<Conta id={self.id} nome_banco={self.nome_banco} apelido={self.apelido}>"
@@ -150,6 +169,18 @@ class Movimentacao(Base):
         UUID(as_uuid=True), ForeignKey("contas.id", ondelete="RESTRICT"), nullable=False
     )
 
+    # Preenchidos só quando esta movimentação nasceu de "marcar uma
+    # pendência como paga" (POST /pendencias/{id}/pagar). pendencia_id
+    # identifica QUAL pendência; pendencia_referencia identifica QUAL
+    # vencimento/ciclo dela foi quitado — não é o mesmo que `data` (que é
+    # quando o pagamento de fato aconteceu, podendo ser depois do
+    # vencimento). RESTRICT: apagar uma pendência com pagamentos já feitos
+    # perderia esse histórico silenciosamente.
+    pendencia_id = Column(
+        UUID(as_uuid=True), ForeignKey("pendencias.id", ondelete="RESTRICT"), nullable=True
+    )
+    pendencia_referencia = Column(Date, nullable=True)
+
     criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
     atualizado_em = Column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
@@ -158,6 +189,20 @@ class Movimentacao(Base):
     usuario = relationship("Usuario", back_populates="movimentacoes")
     categoria = relationship("Categoria", back_populates="movimentacoes")
     conta = relationship("Conta", back_populates="movimentacoes")
+    pendencia = relationship("Pendencia", back_populates="pagamentos")
+
+    __table_args__ = (
+        # Trava contra pagar o mesmo vencimento duas vezes — só se aplica
+        # às linhas que de fato vieram de uma pendência (pendencia_id não
+        # nulo); movimentações normais não entram nessa restrição.
+        Index(
+            "ix_movimentacoes_pendencia_ciclo_unico",
+            "pendencia_id",
+            "pendencia_referencia",
+            unique=True,
+            postgresql_where=pendencia_id.isnot(None),
+        ),
+    )
 
     def __repr__(self) -> str:
         return f"<Movimentacao id={self.id} valor={self.valor} categoria_id={self.categoria_id}>"
@@ -192,6 +237,61 @@ class Transferencia(Base):
 
     def __repr__(self) -> str:
         return f"<Transferencia id={self.id} origem={self.conta_origem_id} destino={self.conta_destino_id}>"
+
+
+class Pendencia(Base):
+    """"Definição" de uma conta a pagar/receber — recorrente (aluguel,
+    assinaturas: um vencimento por mês, no dia `dia_vencimento`) ou avulsa
+    (um vencimento único, em `data_vencimento`). Não guarda status
+    pago/pendente: cada vencimento é considerado pago quando existe uma
+    Movimentacao com `pendencia_id`==esta e `pendencia_referencia`==aquele
+    vencimento (ver Movimentacao). Sem campo `tipo` redundante — igual
+    Movimentacao, o tipo vem de `pendencia.categoria.tipo`."""
+
+    __tablename__ = "pendencias"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    usuario_id = Column(
+        UUID(as_uuid=True), ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+    )
+    descricao = Column(String(120), nullable=False)
+    valor = Column(Numeric(12, 2), nullable=False)
+    categoria_id = Column(
+        UUID(as_uuid=True), ForeignKey("categorias.id", ondelete="RESTRICT"), nullable=False
+    )
+    # Conta sugerida por padrão ao marcar como paga — não obrigatória,
+    # já que a mesma pendência pode ser paga de contas diferentes em
+    # momentos diferentes.
+    conta_id = Column(
+        UUID(as_uuid=True), ForeignKey("contas.id", ondelete="RESTRICT"), nullable=True
+    )
+    recorrente = Column(Boolean, nullable=False, default=False)
+    # Exatamente um dos dois preenchido, validado na camada de schema/rota
+    # (mesmo estilo do resto do projeto — sem CHECK no banco):
+    # dia_vencimento (1-31) se recorrente, data_vencimento se avulsa.
+    dia_vencimento = Column(Integer, nullable=True)
+    data_vencimento = Column(Date, nullable=True)
+    # Permite "pausar" uma recorrente (ex: assinatura cancelada) sem
+    # apagar — apagar exigiria não ter nenhum pagamento no histórico.
+    ativa = Column(Boolean, nullable=False, default=True)
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+    atualizado_em = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    usuario = relationship("Usuario", back_populates="pendencias")
+    categoria = relationship("Categoria")
+    conta = relationship("Conta")
+    # passive_deletes=True: deixa o RESTRICT do banco barrar o delete
+    # (409) quando há Movimentacao vinculada, em vez do SQLAlchemy tentar
+    # settar pendencia_id = NULL nelas antes de apagar a pendência (o que
+    # funcionaria silenciosamente aqui, já que pendencia_id é nullable —
+    # apagaria a pendência e "descolaria" o histórico de pagamentos sem
+    # avisar ninguém).
+    pagamentos = relationship("Movimentacao", back_populates="pendencia", passive_deletes=True)
+
+    def __repr__(self) -> str:
+        return f"<Pendencia id={self.id} descricao={self.descricao} recorrente={self.recorrente}>"
 
 
 class Relatorio(Base):

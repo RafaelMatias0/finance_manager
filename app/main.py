@@ -21,6 +21,7 @@ from app import models, schemas
 from app.security import hash_senha, verificar_senha, criar_access_token, obter_usuario_atual
 from app import relatorios as relatorios_service
 from app import contas as contas_service
+from app import pendencias as pendencias_service
 from app.scheduler import iniciar_scheduler, parar_scheduler
 
 app = FastAPI(title="Gerenciador de Finanças", version="0.4.0")
@@ -385,6 +386,149 @@ def criar_transferencia(
     return transferencia
 
 
+# ---------- Pendência ----------
+
+def _pendencia_out(pendencia: models.Pendencia, ciclos: list) -> schemas.PendenciaOut:
+    return schemas.PendenciaOut(
+        id=pendencia.id,
+        usuario_id=pendencia.usuario_id,
+        descricao=pendencia.descricao,
+        valor=pendencia.valor,
+        categoria_id=pendencia.categoria_id,
+        conta_id=pendencia.conta_id,
+        recorrente=pendencia.recorrente,
+        dia_vencimento=pendencia.dia_vencimento,
+        data_vencimento=pendencia.data_vencimento,
+        ativa=pendencia.ativa,
+        criado_em=pendencia.criado_em,
+        ciclos=ciclos,
+    )
+
+
+@app.get("/pendencias", response_model=List[schemas.PendenciaOut], tags=["pendencias"])
+def listar_pendencias(
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    """Pendências do usuário logado (recorrentes e avulsas), cada uma já
+    com `ciclos`: os vencimentos ainda sem pagamento (status "atrasada"
+    ou "a_vencer"). Pago/pendente nunca é guardado — é sempre calculado a
+    partir das Movimentações vinculadas (ver app/pendencias.py)."""
+    itens = pendencias_service.listar_pendencias_com_ciclos(db, usuario_atual.id)
+    return [_pendencia_out(item["pendencia"], item["ciclos"]) for item in itens]
+
+
+@app.post("/pendencias", response_model=schemas.PendenciaOut, status_code=status.HTTP_201_CREATED, tags=["pendencias"])
+def criar_pendencia(
+    dados: schemas.PendenciaCreate,
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    _validar_categoria_do_usuario(db, dados.categoria_id, usuario_atual.id)
+    if dados.conta_id:
+        _validar_conta_do_usuario(db, dados.conta_id, usuario_atual.id)
+
+    pendencia = models.Pendencia(**dados.model_dump(), usuario_id=usuario_atual.id)
+    db.add(pendencia)
+    db.commit()
+    db.refresh(pendencia)
+    ciclos = pendencias_service.ciclos_de_uma_pendencia(db, pendencia)
+    return _pendencia_out(pendencia, ciclos)
+
+
+@app.patch("/pendencias/{pendencia_id}", response_model=schemas.PendenciaOut, tags=["pendencias"])
+def editar_pendencia(
+    pendencia_id: uuid.UUID,
+    dados: schemas.PendenciaUpdate,
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    pendencia = db.get(models.Pendencia, pendencia_id)
+    if not pendencia or pendencia.usuario_id != usuario_atual.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pendência não encontrada")
+
+    campos = dados.model_dump(exclude_unset=True)
+    if "categoria_id" in campos:
+        _validar_categoria_do_usuario(db, campos["categoria_id"], usuario_atual.id)
+    if campos.get("conta_id") is not None:
+        _validar_conta_do_usuario(db, campos["conta_id"], usuario_atual.id)
+
+    for campo, valor in campos.items():
+        setattr(pendencia, campo, valor)
+
+    db.commit()
+    db.refresh(pendencia)
+    ciclos = pendencias_service.ciclos_de_uma_pendencia(db, pendencia)
+    return _pendencia_out(pendencia, ciclos)
+
+
+@app.delete("/pendencias/{pendencia_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["pendencias"])
+def apagar_pendencia(
+    pendencia_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    pendencia = db.get(models.Pendencia, pendencia_id)
+    if not pendencia or pendencia.usuario_id != usuario_atual.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pendência não encontrada")
+    db.delete(pendencia)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Essa pendência já tem pagamentos vinculados e não pode ser apagada — pause em vez de apagar (PATCH ativa=false).",
+        )
+
+
+@app.post("/pendencias/{pendencia_id}/pagar", response_model=schemas.MovimentacaoOut, status_code=status.HTTP_201_CREATED, tags=["pendencias"])
+def pagar_pendencia(
+    pendencia_id: uuid.UUID,
+    dados: schemas.PendenciaPagarRequest,
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    """Marca um vencimento (ciclo) da pendência como pago — na prática,
+    cria a Movimentação de verdade que o quita, vinculada via
+    pendencia_id/pendencia_referencia. Não existe "desmarcar como pago":
+    pra isso, apague a Movimentação gerada (mesma rota de sempre)."""
+    pendencia = db.get(models.Pendencia, pendencia_id)
+    if not pendencia or pendencia.usuario_id != usuario_atual.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pendência não encontrada")
+
+    _validar_conta_do_usuario(db, dados.conta_id, usuario_atual.id)
+
+    if pendencias_service.ja_foi_pago(db, pendencia_id, dados.data_vencimento):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Esse vencimento já foi pago")
+
+    ciclos_pendentes = {c["data_vencimento"] for c in pendencias_service.ciclos_de_uma_pendencia(db, pendencia)}
+    if dados.data_vencimento not in ciclos_pendentes:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Essa data não corresponde a um vencimento pendente dessa pendência",
+        )
+
+    movimentacao = models.Movimentacao(
+        valor=dados.valor if dados.valor is not None else pendencia.valor,
+        descricao=dados.descricao or pendencia.descricao,
+        data=dados.data,
+        categoria_id=pendencia.categoria_id,
+        conta_id=dados.conta_id,
+        usuario_id=usuario_atual.id,
+        pendencia_id=pendencia.id,
+        pendencia_referencia=dados.data_vencimento,
+    )
+    db.add(movimentacao)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Esse vencimento já foi pago")
+    db.refresh(movimentacao)
+    return movimentacao
+
+
 # ---------- Saldo ----------
 
 @app.get("/saldo", response_model=schemas.SaldoOut, tags=["saldo"])
@@ -461,6 +605,25 @@ def relatorio_comparativo(
     return relatorios_service.gerar_relatorio_comparativo(
         db, usuario_atual.id, data_inicio, data_fim, categoria_id_1, categoria_id_2
     )
+
+
+@app.get("/relatorios/por-categoria", tags=["relatorios"])
+def relatorio_por_categoria(
+    data_inicio: Optional[date] = None,
+    data_fim: Optional[date] = None,
+    tipo: Optional[models.TipoMovimentacao] = None,
+    meses_recentes: int = Query(default=0, ge=0, le=24),
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    """Agregado por categoria (total, %, mín/média/máx e, opcionalmente,
+    quebra por mês). Sem data_inicio/data_fim, considera todo o histórico
+    do usuário logado. Usada tanto pelo gráfico de gastos do mês (com
+    período + tipo=despesa) quanto pela tabela de categorias de Controle
+    (sem período, com meses_recentes) na página Controle."""
+    if data_inicio and data_fim and data_fim < data_inicio:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="data_fim não pode ser anterior a data_inicio")
+    return relatorios_service.resumo_por_categoria(db, usuario_atual.id, data_inicio, data_fim, tipo, meses_recentes)
 
 
 @app.get("/relatorios", response_model=List[schemas.RelatorioOut], tags=["relatorios"])

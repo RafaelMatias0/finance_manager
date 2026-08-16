@@ -76,30 +76,8 @@
   font-weight: 600;
 }
 
-.grade-graficos {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.25rem;
-  margin: 1.5rem 0;
-}
-
-.cartao-grafico {
-  background: var(--papel-cartao);
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio);
-  padding: 1rem;
-  min-height: 260px;
-}
-
-.cartao-grafico__titulo {
-  font-family: var(--fonte-display);
-  font-size: 0.95rem;
-  font-weight: 600;
-  margin: 0 0 0.75rem;
-  text-align: center;
-}
-
-.cartao-grafico canvas { max-height: 220px; }
+/* .grade-graficos, .cartao-grafico e .cartao-grafico__titulo viraram
+   compartilhadas (Controle também usa card de gráfico) — ver style.css. */
 
 .linha-clicavel { cursor: pointer; }
 .linha-clicavel:hover { background: rgba(22, 36, 29, 0.05); }

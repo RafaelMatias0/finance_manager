@@ -9,7 +9,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, EmailStr, ConfigDict, Field
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, model_validator
 
 from app.models import TipoMovimentacao, TipoRelatorio
 
@@ -119,6 +119,11 @@ class MovimentacaoOut(BaseModel):
     usuario_id: uuid.UUID
     categoria_id: uuid.UUID
     conta_id: uuid.UUID
+    # Preenchidos só quando a movimentação nasceu de "marcar uma
+    # pendência como paga" (POST /pendencias/{id}/pagar) — nulos numa
+    # movimentação criada normalmente.
+    pendencia_id: Optional[uuid.UUID] = None
+    pendencia_referencia: Optional[date] = None
     criado_em: datetime
 
 
@@ -149,6 +154,83 @@ class TransferenciaOut(BaseModel):
     descricao: Optional[str]
     data: date
     criado_em: datetime
+
+
+# ---------- Pendência ----------
+
+class StatusCiclo(str, Enum):
+    ATRASADA = "atrasada"
+    A_VENCER = "a_vencer"
+
+
+class CicloPendencia(BaseModel):
+    """Um vencimento específico (mês, pra recorrente; a data única, pra
+    avulsa) ainda sem pagamento vinculado."""
+    data_vencimento: date
+    status: StatusCiclo
+
+
+class PendenciaCreate(BaseModel):
+    descricao: str = Field(min_length=1, max_length=120)
+    valor: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+    categoria_id: uuid.UUID
+    conta_id: Optional[uuid.UUID] = None
+    recorrente: bool = False
+    dia_vencimento: Optional[int] = Field(default=None, ge=1, le=31)
+    data_vencimento: Optional[date] = None
+
+    @model_validator(mode="after")
+    def _validar_vencimento(self):
+        if self.recorrente:
+            if self.dia_vencimento is None:
+                raise ValueError("dia_vencimento é obrigatório para pendência recorrente")
+            if self.data_vencimento is not None:
+                raise ValueError("data_vencimento não se aplica a pendência recorrente (use dia_vencimento)")
+        else:
+            if self.data_vencimento is None:
+                raise ValueError("data_vencimento é obrigatório para pendência avulsa")
+            if self.dia_vencimento is not None:
+                raise ValueError("dia_vencimento não se aplica a pendência avulsa (use data_vencimento)")
+        return self
+
+
+class PendenciaUpdate(BaseModel):
+    """Todos os campos opcionais — só os enviados são alterados (PATCH).
+    Não valida a combinação recorrente/dia_vencimento/data_vencimento
+    entre si (validação completa só faz sentido no Create — um PATCH
+    parcial poderia mudar só a descrição, por exemplo)."""
+    descricao: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    valor: Optional[Decimal] = Field(default=None, gt=0, max_digits=12, decimal_places=2)
+    categoria_id: Optional[uuid.UUID] = None
+    conta_id: Optional[uuid.UUID] = None
+    dia_vencimento: Optional[int] = Field(default=None, ge=1, le=31)
+    data_vencimento: Optional[date] = None
+    ativa: Optional[bool] = None
+
+
+class PendenciaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    usuario_id: uuid.UUID
+    descricao: str
+    valor: Decimal
+    categoria_id: uuid.UUID
+    conta_id: Optional[uuid.UUID]
+    recorrente: bool
+    dia_vencimento: Optional[int]
+    data_vencimento: Optional[date]
+    ativa: bool
+    criado_em: datetime
+    ciclos: List[CicloPendencia]
+
+
+class PendenciaPagarRequest(BaseModel):
+    data_vencimento: date
+    conta_id: uuid.UUID
+    valor: Optional[Decimal] = Field(default=None, gt=0, max_digits=12, decimal_places=2)
+    descricao: Optional[str] = Field(default=None, max_length=255)
+    data: date = Field(default_factory=date.today)
 
 
 # ---------- Saldo ----------

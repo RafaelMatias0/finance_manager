@@ -136,9 +136,28 @@ const Api = {
   criarTransferencia(dados) {
     return requisitar("POST", "/transferencias", { body: dados });
   },
+  // ---------- Pendências ----------
+  pendencias() {
+    return requisitar("GET", "/pendencias");
+  },
+  criarPendencia(dados) {
+    return requisitar("POST", "/pendencias", { body: dados });
+  },
+  editarPendencia(id, dados) {
+    return requisitar("PATCH", `/pendencias/${id}`, { body: dados });
+  },
+  apagarPendencia(id) {
+    return requisitar("DELETE", `/pendencias/${id}`);
+  },
+  pagarPendencia(id, dados) {
+    return requisitar("POST", `/pendencias/${id}/pagar`, { body: dados });
+  },
   // ---------- Relatórios ----------
   relatorioPersonalizado(filtros) {
     return requisitar("GET", "/relatorios/personalizado", { query: filtros });
+  },
+  porCategoria(filtros) {
+    return requisitar("GET", "/relatorios/por-categoria", { query: filtros });
   },
   relatorioComparativo(filtros) {
     return requisitar("GET", "/relatorios/comparativo", { query: filtros });

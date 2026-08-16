@@ -8,8 +8,6 @@
  * - Recolher/expandir a sidebar (estado persistido em localStorage).
  * - Marcar o item de navegação ativo (via data-pagina no <body>).
  * - Botão "Sair" da sidebar.
- * - Link "Contas": abre o modal de contas se ele existir na página atual;
- *   senão, navega para index.html#contas (que abre o modal lá).
  */
 const SIDEBAR_ESTADO_KEY = "gf_sidebar_recolhida";
 
@@ -37,17 +35,6 @@ function inicializarSidebar() {
     btnSairSidebar.addEventListener("click", () => {
       Auth.limparToken();
       window.location.href = "index.html";
-    });
-  }
-
-  const linkContas = document.getElementById("link-contas-sidebar");
-  if (linkContas) {
-    linkContas.addEventListener("click", () => {
-      if (typeof abrirModalContas === "function") {
-        abrirModalContas();
-      } else {
-        window.location.href = "index.html#contas";
-      }
     });
   }
 }
