@@ -8,10 +8,8 @@ document.addEventListener("sessao-expirada", () => {
   window.location.href = "index.html";
 });
 
-document.getElementById("btn-sair").addEventListener("click", () => {
-  Auth.limparToken();
-  window.location.href = "index.html";
-});
+// O botão "Sair" agora vive na sidebar (js/sidebar.js cuida dele, já que
+// ela é compartilhada entre todas as páginas logadas).
 
 let categorias = [];
 const graficos = {}; // registro de instâncias Chart.js, pra destruir antes de recriar

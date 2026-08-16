@@ -25,6 +25,13 @@
   --erro: #A3341E;
   --erro-fundo: #FBE9E5;
 
+  /* Sidebar (mais escura que o resto, pra dar hierarquia sem redesenhar
+     o app inteiro — ver decisão pendente de direção visual completa) */
+  --sidebar-fundo: #16241D;
+  --sidebar-texto: #C9D2C5;
+  --sidebar-texto-ativo: #FBFBF8;
+  --sidebar-hover: #223327;
+
   /* Tipografia */
   --fonte-display: "Lora", Georgia, serif;
   --fonte-corpo: "Inter", system-ui, sans-serif;
@@ -34,6 +41,8 @@
   --raio: 3px;
   --sombra-cartao: 0 1px 2px rgba(22, 36, 29, 0.06), 0 4px 16px rgba(22, 36, 29, 0.05);
   --transicao: 140ms ease;
+  --sidebar-largura: 224px;
+  --sidebar-largura-recolhida: 64px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -46,9 +55,6 @@
 body {
   margin: 0;
   background: var(--papel);
-  background-image:
-    linear-gradient(var(--linha) 1px, transparent 1px);
-  background-size: 100% 2.2rem;
   color: var(--tinta);
   font-family: var(--fonte-corpo);
   font-size: 15px;
@@ -69,7 +75,164 @@ button, input, select {
   outline-offset: 2px;
 }
 
-/* ---------- Topo ---------- */
+/* ---------- Estrutura da aplicação (sidebar + conteúdo) ---------- */
+
+.app-shell {
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+}
+
+.app-shell__conteudo {
+  flex: 1;
+  min-width: 0;
+  background: var(--papel);
+  background-image: linear-gradient(var(--linha) 1px, transparent 1px);
+  background-size: 100% 2.2rem;
+}
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+  width: var(--sidebar-largura);
+  flex-shrink: 0;
+  background: var(--sidebar-fundo);
+  color: var(--sidebar-texto);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  transition: width var(--transicao);
+  overflow-x: hidden;
+}
+
+.sidebar--recolhida { width: var(--sidebar-largura-recolhida); }
+
+.sidebar__topo {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 1.1rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar__toggle {
+  background: none;
+  border: none;
+  color: var(--sidebar-texto);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.3rem;
+  border-radius: var(--raio);
+  flex-shrink: 0;
+}
+.sidebar__toggle:hover { background: var(--sidebar-hover); }
+
+.sidebar__marca {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sidebar__selo {
+  width: 1.9rem;
+  height: 1.9rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--dourado);
+  color: var(--tinta);
+  font-family: var(--fonte-display);
+  font-weight: 700;
+  border-radius: var(--raio);
+  font-size: 1rem;
+}
+
+.sidebar__nome {
+  font-family: var(--fonte-display);
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--sidebar-texto-ativo);
+}
+
+.sidebar--recolhida .sidebar__nome { display: none; }
+
+.sidebar__nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.85rem 0.6rem;
+  overflow-y: auto;
+}
+
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.65rem;
+  border-radius: var(--raio);
+  color: var(--sidebar-texto);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.88rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sidebar__link:hover { background: var(--sidebar-hover); color: var(--sidebar-texto-ativo); }
+
+.sidebar__link.is-ativo {
+  background: var(--dourado);
+  color: var(--tinta);
+}
+
+.sidebar__link--desabilitado {
+  cursor: default;
+  opacity: 0.55;
+}
+.sidebar__link--desabilitado:hover { background: none; color: var(--sidebar-texto); }
+
+.sidebar__icone {
+  flex-shrink: 0;
+  width: 1.15rem;
+  height: 1.15rem;
+  display: grid;
+  place-items: center;
+}
+.sidebar__icone svg { width: 100%; height: 100%; }
+
+.sidebar__label { overflow: hidden; text-overflow: ellipsis; }
+.sidebar--recolhida .sidebar__label,
+.sidebar--recolhida .sidebar__selo-em-breve { display: none; }
+
+.sidebar__selo-em-breve {
+  margin-left: auto;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.sidebar__rodape {
+  padding: 0.85rem 0.9rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sidebar--recolhida .sidebar__rodape .btn { padding: 0.5rem; }
+.sidebar--recolhida .sidebar__rodape .btn span.rotulo-completo { display: none; }
+
+/* ---------- Topo (dentro do conteúdo, sem sidebar) ---------- */
 
 .topo {
   display: flex;
@@ -77,7 +240,6 @@ button, input, select {
   justify-content: space-between;
   padding: 1.1rem 1.75rem;
   border-bottom: 1px solid var(--linha-forte);
-  background: var(--papel);
 }
 
 .topo__marca {
@@ -123,6 +285,18 @@ button, input, select {
 .topo__link:hover { color: var(--tinta); border-bottom-color: var(--dourado); }
 .topo__link.is-ativo { color: var(--tinta); border-bottom-color: var(--dourado); }
 
+.topo__abrir-sidebar {
+  background: none;
+  border: 1px solid var(--linha-forte);
+  color: var(--tinta);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--raio);
+  cursor: pointer;
+}
+.topo__abrir-sidebar:hover { border-color: var(--tinta); }
+
 /* ---------- Botões ---------- */
 
 .btn {
@@ -154,6 +328,13 @@ button, input, select {
 }
 .btn--fantasma:hover { border-color: var(--tinta); color: var(--tinta); }
 
+.sidebar .btn--fantasma {
+  color: var(--sidebar-texto);
+  border-color: rgba(255, 255, 255, 0.18);
+  width: 100%;
+}
+.sidebar .btn--fantasma:hover { color: var(--sidebar-texto-ativo); border-color: rgba(255, 255, 255, 0.4); }
+
 .btn--pequeno { padding: 0.45rem 0.85rem; font-size: 0.85rem; }
 
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -173,10 +354,13 @@ button, input, select {
 /* ---------- Auth ---------- */
 
 .tela-auth {
-  min-height: calc(100vh - 68px);
+  min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 2rem 1rem;
+  background: var(--papel);
+  background-image: linear-gradient(var(--linha) 1px, transparent 1px);
+  background-size: 100% 2.2rem;
 }
 
 .cartao-auth {
@@ -340,6 +524,52 @@ button, input, select {
   display: inline-block;
 }
 
+/* ---------- Contas bancárias ---------- */
+
+.painel--contas .painel__cabecalho { margin-bottom: 0.85rem; }
+
+.lista-contas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.cartao-conta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  background: var(--papel-cartao);
+}
+
+.cartao-conta__info { display: flex; flex-direction: column; gap: 0.15rem; }
+.cartao-conta__banco { font-weight: 600; }
+.cartao-conta__apelido { font-size: 0.78rem; color: var(--tinta-suave); }
+
+.cartao-conta__saldo {
+  font-family: var(--fonte-mono);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cartao-conta__acoes { display: flex; gap: 0.4rem; }
+.cartao-conta__acoes button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--tinta-suave);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.cartao-conta__acoes button:hover { color: var(--tinta); }
+.cartao-conta__acoes .btn-apagar-conta:hover { color: var(--despesa); }
+
 /* ---------- Grade principal ---------- */
 
 .grade-principal {
@@ -435,6 +665,15 @@ button, input, select {
   background: var(--linha);
 }
 
+.etiqueta-conta {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  background: var(--dourado-fundo);
+  color: var(--tinta);
+}
+
 .acoes-linha { display: flex; gap: 0.5rem; justify-content: flex-end; }
 .acoes-linha button {
   background: none;
@@ -474,7 +713,7 @@ button, input, select {
   color: var(--tinta-suave);
 }
 
-/* ---------- Modal de edição ---------- */
+/* ---------- Modais ---------- */
 
 .modal {
   position: fixed;
@@ -493,6 +732,8 @@ button, input, select {
   border-radius: var(--raio);
   padding: 1.5rem;
   box-shadow: var(--sombra-cartao);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .modal__acoes {
@@ -500,6 +741,12 @@ button, input, select {
   justify-content: flex-end;
   gap: 0.6rem;
   margin-top: 0.4rem;
+}
+
+.modal__divisor {
+  border: none;
+  border-top: 1px solid var(--linha);
+  margin: 1.25rem 0;
 }
 
 /* ---------- Toasts ---------- */
@@ -541,11 +788,41 @@ button, input, select {
   .tela-app { padding: 1rem; }
 }
 
+/* ---------- Responsivo: sidebar vira barra superior fixa no mobile ---------- */
+
+@media (max-width: 700px) {
+  .app-shell { flex-direction: column; }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: sticky;
+    top: 0;
+    flex-direction: row;
+    align-items: center;
+    z-index: 15;
+  }
+  .sidebar__topo { border-bottom: none; padding: 0.75rem 0.85rem; }
+  .sidebar__nav {
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 0.5rem 0.6rem;
+    flex: 1;
+  }
+  .sidebar__link { white-space: nowrap; }
+  .sidebar__rodape { border-top: none; padding: 0.75rem 0.85rem; width: auto; }
+  .sidebar .btn--fantasma { width: auto; }
+  .sidebar--recolhida { width: 100%; }
+  .sidebar--recolhida .sidebar__nav { display: none; }
+  .sidebar--recolhida .sidebar__rodape { display: none; }
+}
+
 /* ---------- Responsivo: celular ----------
    Alvos de toque maiores (min. 44px, recomendação de acessibilidade),
    fonte de 16px em inputs (evita o zoom automático que iOS faz em campos
-   com fonte menor que isso ao focar), tabela vira lista de "cards"
-   (5 colunas não cabem numa tela de ~375px de largura). */
+   com fonte menor que essa), tabela vira lista de "cards"
+   (5 colunas não cabem numa tela de celular)
+   automático que o iOS faz ao focar um input com fonte menor que essa),
+   filtros do histórico empilham em coluna única no mobile. */
 
 @media (max-width: 600px) {
   .topo { padding: 0.85rem 1rem; }
@@ -617,6 +894,7 @@ button, input, select {
   /* Paginação: evita quebra estranha em telas bem estreitas */
   .paginacao { gap: 0.6rem; flex-wrap: wrap; }
 
+  .cartao-conta { flex-wrap: wrap; }
+
   .modal__conteudo { padding: 1.1rem; }
 }
-

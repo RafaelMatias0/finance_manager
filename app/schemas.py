@@ -49,13 +49,6 @@ class CategoriaCreate(BaseModel):
     tipo: TipoMovimentacao
 
 
-class CategoriaUpdate(BaseModel):
-    # Só o nome é editável — mudar o "tipo" de uma categoria já usada
-    # reclassificaria retroativamente movimentações antigas, o que é
-    # mais perigoso do que vale a pena para esse MVP.
-    nome: str = Field(min_length=1, max_length=80)
-
-
 class CategoriaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -71,6 +64,32 @@ class CategoriaUpdate(BaseModel):
     tipo: Optional[TipoMovimentacao] = None
 
 
+# ---------- Conta ----------
+
+class ContaCreate(BaseModel):
+    nome_banco: str = Field(min_length=1, max_length=80)
+    apelido: Optional[str] = Field(default=None, max_length=80)
+    saldo_inicial: Decimal = Field(default=Decimal("0"), max_digits=12, decimal_places=2)
+
+
+class ContaUpdate(BaseModel):
+    """Todos os campos opcionais — só os enviados são alterados (PATCH)."""
+    nome_banco: Optional[str] = Field(default=None, min_length=1, max_length=80)
+    apelido: Optional[str] = Field(default=None, max_length=80)
+    saldo_inicial: Optional[Decimal] = Field(default=None, max_digits=12, decimal_places=2)
+
+
+class ContaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    nome_banco: str
+    apelido: Optional[str]
+    saldo_inicial: Decimal
+    saldo_atual: Decimal
+    criado_em: datetime
+
+
 # ---------- Movimentacao ----------
 
 class MovimentacaoCreate(BaseModel):
@@ -78,13 +97,16 @@ class MovimentacaoCreate(BaseModel):
     descricao: Optional[str] = Field(default=None, max_length=255)
     data: date = Field(default_factory=date.today)
     categoria_id: uuid.UUID
+    conta_id: uuid.UUID
 
 
 class MovimentacaoUpdate(BaseModel):
+    """Todos os campos opcionais — só os enviados são alterados (PATCH)."""
     valor: Optional[Decimal] = Field(default=None, gt=0, max_digits=12, decimal_places=2)
     descricao: Optional[str] = Field(default=None, max_length=255)
     data: Optional[date] = None
     categoria_id: Optional[uuid.UUID] = None
+    conta_id: Optional[uuid.UUID] = None
 
 
 class MovimentacaoOut(BaseModel):
@@ -96,15 +118,8 @@ class MovimentacaoOut(BaseModel):
     data: date
     usuario_id: uuid.UUID
     categoria_id: uuid.UUID
+    conta_id: uuid.UUID
     criado_em: datetime
-
-
-class MovimentacaoUpdate(BaseModel):
-    """Todos os campos opcionais — só os enviados são alterados (PATCH)."""
-    valor: Optional[Decimal] = Field(default=None, gt=0, max_digits=12, decimal_places=2)
-    descricao: Optional[str] = Field(default=None, max_length=255)
-    data: Optional[date] = None
-    categoria_id: Optional[uuid.UUID] = None
 
 
 class MovimentacaoListOut(BaseModel):
@@ -112,6 +127,28 @@ class MovimentacaoListOut(BaseModel):
     skip: int
     limit: int
     itens: List[MovimentacaoOut]
+
+
+# ---------- Transferência ----------
+
+class TransferenciaCreate(BaseModel):
+    conta_origem_id: uuid.UUID
+    conta_destino_id: uuid.UUID
+    valor: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+    descricao: Optional[str] = Field(default=None, max_length=255)
+    data: date = Field(default_factory=date.today)
+
+
+class TransferenciaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    conta_origem_id: uuid.UUID
+    conta_destino_id: uuid.UUID
+    valor: Decimal
+    descricao: Optional[str]
+    data: date
+    criado_em: datetime
 
 
 # ---------- Saldo ----------
