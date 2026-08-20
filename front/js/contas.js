@@ -268,4 +268,12 @@ function renderizarTransferencias(lista) {
 (async function iniciar() {
   await carregarContas();
   await carregarTransferencias();
+
+  // Vem do botão "+ criar conta" do Início (contas.html?criar=1) — abre
+  // o formulário direto, sem o usuário precisar procurar "+ nova conta"
+  // na página. Limpa o parâmetro da URL pra um refresh não reabrir sozinho.
+  if (new URLSearchParams(window.location.search).get("criar")) {
+    abrirFormConta();
+    window.history.replaceState({}, "", window.location.pathname);
+  }
 })();

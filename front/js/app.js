@@ -91,12 +91,14 @@ document.getElementById("form-cadastro").addEventListener("submit", async (event
 
 async function iniciarDashboard() {
   document.querySelector('#form-movimentacao input[name="data"]').value = hojeISO();
-  // carregarCategorias() vai primeiro e isolado: renderizarLancamentosRecentes
-  // usa categoriaPorId (estado.categorias) pra decidir cor/sinal de cada
-  // lançamento, então não pode rodar em paralelo com ela (senão corre risco
-  // de ainda estar vazio quando os lançamentos chegarem).
-  await carregarCategorias();
-  await Promise.all([carregarContas(), carregarPendencias(), carregarLancamentosRecentes(), carregarUsuarioAtual()]);
+  // carregarCategorias()/carregarContas() vão primeiro e isolados:
+  // renderizarLancamentosRecentes usa categoriaPorId (estado.categorias)
+  // pra decidir cor/sinal de cada lançamento, e agora também
+  // estado.contas.length pra escolher a mensagem de "vazio" certa — não
+  // pode rodar em paralelo com nenhum dos dois (senão corre risco de
+  // ainda estarem vazios quando os lançamentos chegarem).
+  await Promise.all([carregarCategorias(), carregarContas()]);
+  await Promise.all([carregarPendencias(), carregarLancamentosRecentes(), carregarUsuarioAtual()]);
 }
 
 function categoriaPorId(id) {
@@ -273,6 +275,12 @@ function renderizarLancamentosRecentes(itens) {
   lista.innerHTML = "";
 
   if (itens.length === 0) {
+    // Mensagem muda conforme o que falta: sem conta, o próximo passo é
+    // criar uma (não adianta apontar pros botões Receita/Despesa, que
+    // vão só mostrar um erro); com conta, aponta pros botões de verdade.
+    vazio.textContent = estado.contas.length === 0
+      ? 'Nenhuma conta cadastrada ainda — crie uma no card "Contas" ao lado antes de lançar algo.'
+      : 'Nenhum lançamento ainda. Use os botões "Receita"/"Despesa" acima pra registrar o primeiro.';
     vazio.classList.remove("oculto");
     return;
   }
