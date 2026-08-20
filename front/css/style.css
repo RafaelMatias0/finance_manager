@@ -1010,6 +1010,18 @@ html[data-tema="escuro"] .icone-tema--sol { display: grid; }
   align-self: flex-start;
 }
 
+/* Card de Contas no Início: dois links no rodapé em vez de um só — "+
+   criar conta" no canto inferior esquerdo, "Gerenciar contas →" no
+   direito. */
+.grid-inicio__linha > .painel > .painel__rodape {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
 /* ---------- Placeholders "em breve" ---------- */
 
 .cartao-em-breve {
