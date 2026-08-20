@@ -28,10 +28,9 @@ from app.scheduler import iniciar_scheduler, parar_scheduler
 app = FastAPI(title="Gerenciador de Finanças", version="0.4.0")
 
 # CORS liberado para desenvolvimento local (o front roda em outra origem/porta).
-# Em produção, troque allow_origins=["*"] pela URL real do front.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://finance-manager-lilac-five.vercel.app"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
