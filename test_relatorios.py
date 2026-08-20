@@ -11,8 +11,19 @@ import urllib.request
 import urllib.error
 import json
 import time
+from datetime import date
 
 BASE = "http://127.0.0.1:8000"
+
+
+def mes_atras(n, dia=5):
+    """Data no dia fixo `dia` (evita problema de mês curto), n meses antes
+    do mês atual. Calculado de forma independente da implementação do
+    backend, pra servir de conferência real."""
+    hoje = date.today()
+    total_meses = hoje.year * 12 + (hoje.month - 1) - n
+    ano, mes = divmod(total_meses, 12)
+    return date(ano, mes + 1, dia).isoformat()
 
 
 def call(method, path, body=None, token=None, form=False):
@@ -76,6 +87,12 @@ cat_alimentacao = cats["Alimentação"]
 cat_transporte = cats["Transporte"]
 cat_lazer = cats["Lazer"]
 
+# Movimentação exige conta_id desde a Fase 1 (v2.1.0) — cria uma conta pro
+# usuário de teste antes de lançar qualquer movimentação.
+s, b = call("POST", "/contas", {"nome_banco": "Banco Teste"}, token=token)
+check("criar conta de teste", s == 201, f"status={s}")
+conta_id = b["id"]
+
 # ---------- Criar movimentações no período fixo ----------
 movs = [
     (cat_salario, "2026-01-01", 1000),
@@ -87,8 +104,67 @@ movs = [
     (cat_lazer, "2026-01-05", 200),
 ]
 for categoria_id, data_mov, valor in movs:
-    s, b = call("POST", "/movimentacoes", {"valor": valor, "categoria_id": categoria_id, "data": data_mov}, token=token)
+    s, b = call("POST", "/movimentacoes", {"valor": valor, "categoria_id": categoria_id, "conta_id": conta_id, "data": data_mov}, token=token)
     check(f"criar movimentacao {data_mov} valor={valor}", s == 201, f"status={s}")
+
+# ---------- Por categoria (sem filtro): total/%/mín/média/máx à mão ----------
+# A partir daqui, com só as 7 movimentações acima: Salário (receita)
+# 1000+500=1500; despesas: Alimentação 100+50=150, Transporte 80+20=100,
+# Lazer 200 — total despesas=450.
+s, b = call("GET", "/relatorios/por-categoria", token=token)
+check("por-categoria sem filtro: status 200", s == 200, f"status={s}")
+por_nome = {c["categoria_nome"]: c for c in b} if s == 200 else {}
+check("por-categoria: Salário total=1500 qtd=2 min=500 media=750 max=1000",
+      por_nome.get("Salário", {}).get("total") == 1500
+      and por_nome["Salário"]["quantidade"] == 2
+      and aproxima(por_nome["Salário"]["minimo"], 500)
+      and aproxima(por_nome["Salário"]["media"], 750)
+      and aproxima(por_nome["Salário"]["maximo"], 1000),
+      f"={por_nome.get('Salário')}")
+check("por-categoria: Salário percentual=100 (só receita)", aproxima(por_nome.get("Salário", {}).get("percentual", -1), 100), f"={por_nome.get('Salário')}")
+check("por-categoria: Alimentação total=150 percentual=33.33", aproxima(por_nome.get("Alimentação", {}).get("total", -1), 150) and aproxima(por_nome.get("Alimentação", {}).get("percentual", -1), 33.33, 0.1), f"={por_nome.get('Alimentação')}")
+check("por-categoria: Transporte total=100 min=20 media=50 max=80 percentual=22.22",
+      aproxima(por_nome.get("Transporte", {}).get("total", -1), 100)
+      and aproxima(por_nome.get("Transporte", {}).get("minimo", -1), 20)
+      and aproxima(por_nome.get("Transporte", {}).get("media", -1), 50)
+      and aproxima(por_nome.get("Transporte", {}).get("maximo", -1), 80)
+      and aproxima(por_nome.get("Transporte", {}).get("percentual", -1), 22.22, 0.1),
+      f"={por_nome.get('Transporte')}")
+check("por-categoria: Lazer total=200 percentual=44.44", aproxima(por_nome.get("Lazer", {}).get("total", -1), 200) and aproxima(por_nome.get("Lazer", {}).get("percentual", -1), 44.44, 0.1), f"={por_nome.get('Lazer')}")
+
+# ---------- Por categoria: filtro tipo=despesa (some Salário) ----------
+s, b = call("GET", "/relatorios/por-categoria?tipo=despesa", token=token)
+nomes_despesa = {c["categoria_nome"] for c in b} if s == 200 else set()
+check("por-categoria tipo=despesa: sem Salário, com as 3 de despesa", "Salário" not in nomes_despesa and {"Alimentação", "Transporte", "Lazer"} <= nomes_despesa, f"={nomes_despesa}")
+
+# ---------- Por categoria: filtro de período (recorta pra 01-01 e 01-02) ----------
+s, b = call("GET", "/relatorios/por-categoria?data_inicio=2026-01-01&data_fim=2026-01-02", token=token)
+por_nome_periodo = {c["categoria_nome"]: c for c in b} if s == 200 else {}
+check("por-categoria com período: Transporte total=80 (só a de 01-02, não a de 01-04)", aproxima(por_nome_periodo.get("Transporte", {}).get("total", -1), 80), f"={por_nome_periodo.get('Transporte')}")
+check("por-categoria com período: Lazer não aparece (movimentação é de 01-05)", "Lazer" not in por_nome_periodo, f"={list(por_nome_periodo.keys())}")
+
+# ---------- Por categoria: isolamento entre usuários ----------
+s, b = call("GET", "/relatorios/por-categoria", token=token_outro)
+check("por-categoria outro usuário (sem movimentações): lista vazia", s == 200 and b == [], f"status={s} body={b}")
+
+# ---------- Por categoria: erro data_fim antes de data_inicio ----------
+s, b = call("GET", "/relatorios/por-categoria?data_inicio=2026-01-05&data_fim=2026-01-01", token=token)
+check("por-categoria data_fim antes de data_inicio -> 422", s == 422, f"status={s}")
+
+# ---------- Por categoria: meses_recentes (quebra mensal, datas relativas a hoje) ----------
+s, b = call("POST", "/categorias", {"nome": "Teste Mensal", "tipo": "despesa"}, token=token)
+cat_mensal = b["id"]
+valores_mensais = [333, 222, 111]  # [2 meses atrás, 1 mês atrás, mês atual]
+for i, valor in enumerate(valores_mensais):
+    s, b = call("POST", "/movimentacoes", {"valor": valor, "categoria_id": cat_mensal, "conta_id": conta_id, "data": mes_atras(2 - i)}, token=token)
+    check(f"criar movimentacao mensal (mes_atras={2-i}) valor={valor}", s == 201, f"status={s}")
+
+s, b = call("GET", "/relatorios/por-categoria?meses_recentes=3", token=token)
+item_mensal = next((c for c in b if c["categoria_nome"] == "Teste Mensal"), None) if s == 200 else None
+check("por-categoria meses_recentes: categoria aparece com 3 meses", item_mensal is not None and len(item_mensal.get("mensal", [])) == 3, f"={item_mensal}")
+if item_mensal:
+    totais_mensais = [m["total"] for m in item_mensal["mensal"]]
+    check("por-categoria meses_recentes: ordem do mais antigo pro mais recente = [333, 222, 111]", totais_mensais == [333.0, 222.0, 111.0], f"={totais_mensais}")
 
 # ---------- Relatório personalizado (sem filtro) ----------
 s, b = call("GET", "/relatorios/personalizado?data_inicio=2026-01-01&data_fim=2026-01-05", token=token)

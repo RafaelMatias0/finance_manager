@@ -17,61 +17,15 @@
     }
   })();
 </script>
-<title>Cofre — controle financeiro pessoal</title>
+<title>Pendências — Cofre</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/style.css" />
 </head>
-<body data-pagina="inicio">
+<body data-pagina="pendencias">
 
-<header class="topo" id="topo-publico">
-  <div class="topo__marca">
-    <span class="topo__selo">C</span>
-    <span class="topo__nome">Cofre</span>
-  </div>
-</header>
-
-<main id="tela-auth" class="tela-auth">
-  <div class="cartao-auth">
-    <div class="abas cartao-auth__abas" role="tablist">
-      <button class="aba is-ativa" data-aba="login" role="tab" aria-selected="true">Entrar</button>
-      <button class="aba" data-aba="cadastro" role="tab" aria-selected="false">Criar conta</button>
-    </div>
-
-    <form id="form-login" class="formulario" data-painel="login">
-      <p class="erro-formulario" id="erro-login" role="alert"></p>
-      <label class="campo">
-        <span>Email</span>
-        <input type="email" name="email" required autocomplete="email" />
-      </label>
-      <label class="campo">
-        <span>Senha</span>
-        <input type="password" name="senha" required autocomplete="current-password" />
-      </label>
-      <button type="submit" class="btn btn--principal">Entrar</button>
-    </form>
-
-    <form id="form-cadastro" class="formulario oculto" data-painel="cadastro">
-      <p class="erro-formulario" id="erro-cadastro" role="alert"></p>
-      <label class="campo">
-        <span>Nome</span>
-        <input type="text" name="nome" required autocomplete="name" />
-      </label>
-      <label class="campo">
-        <span>Email</span>
-        <input type="email" name="email" required autocomplete="email" />
-      </label>
-      <label class="campo">
-        <span>Senha</span>
-        <input type="password" name="senha" required minlength="6" autocomplete="new-password" />
-      </label>
-      <button type="submit" class="btn btn--principal">Criar conta</button>
-    </form>
-  </div>
-</main>
-
-<div id="app-shell" class="app-shell oculto">
+<div id="app-shell" class="app-shell">
 
   <aside class="sidebar" id="sidebar">
     <div class="sidebar__topo">
@@ -114,8 +68,8 @@
   <div class="app-shell__conteudo">
     <header class="topo">
       <div>
-        <h1 class="topo__titulo">Início</h1>
-        <p class="topo__subtitulo">Seu resumo do dia, num relance.</p>
+        <h1 class="topo__titulo">Pendências</h1>
+        <p class="topo__subtitulo">Contas recorrentes e avulsas, em dia ou atrasadas.</p>
       </div>
       <div class="topo__acoes">
         <button type="button" id="btn-alternar-tema" class="btn-icone-tema" aria-label="Alternar tema claro/escuro">
@@ -143,83 +97,43 @@
       </div>
     </header>
 
-    <main id="tela-app" class="tela-app">
+    <main class="tela-app">
 
-      <div class="grid-inicio">
-
-        <div class="grid-inicio__linha">
-          <section class="painel" aria-label="Lançamentos recentes">
-            <div class="painel__cabecalho">
-              <h2 class="painel__titulo">Lançamentos</h2>
-            </div>
-
-            <div class="acoes-rapidas">
-              <button type="button" id="btn-nova-receita" class="btn-rapido btn-rapido--receita">
-                <span class="btn-rapido__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg></span>
-                Receita
-              </button>
-              <button type="button" id="btn-nova-despesa" class="btn-rapido btn-rapido--despesa">
-                <span class="btn-rapido__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12l7 7 7-7"/></svg></span>
-                Despesa
-              </button>
-            </div>
-
-            <div id="lista-lancamentos-recentes" class="lista-lancamentos-inicio"></div>
-            <p id="lancamentos-recentes-vazio" class="estado-vazio oculto">Nenhum lançamento ainda.</p>
-            <a href="controle.html" class="link-acao link-acao--navegacao">Ver histórico completo →</a>
-          </section>
-
-          <section class="painel" aria-label="Saldo por conta">
-            <div class="painel__cabecalho">
-              <h2 class="painel__titulo">Contas</h2>
-            </div>
-            <div id="resumo-contas" class="resumo-contas-inicio"></div>
-            <p id="resumo-contas-vazio" class="estado-vazio oculto">Nenhuma conta cadastrada.</p>
-            <a href="contas.html" class="link-acao link-acao--navegacao">Gerenciar contas →</a>
-          </section>
+      <section class="painel" aria-label="Pendências">
+        <div class="painel__cabecalho">
+          <h2 class="painel__titulo">Pendências</h2>
+          <button type="button" id="btn-nova-pendencia" class="link-acao">+ nova pendência</button>
         </div>
+        <div id="lista-pendencias" class="lista-pendencias"></div>
+        <p id="pendencias-vazio" class="estado-vazio oculto">Nenhuma pendência cadastrada ainda.</p>
+      </section>
 
-        <div class="grid-inicio__linha">
-          <section class="painel" aria-label="Pendências">
-            <div class="painel__cabecalho">
-              <h2 class="painel__titulo">Pendências</h2>
-            </div>
-            <div id="resumo-pendencias" class="resumo-pendencias-inicio"></div>
-            <p id="resumo-pendencias-vazio" class="estado-vazio oculto">Nenhuma pendência no momento.</p>
-            <a href="pendencias.html" class="link-acao link-acao--navegacao">Gerenciar pendências →</a>
-          </section>
-
-          <section class="cartao-em-breve" aria-label="Enviar arquivo (em breve)">
-            <div class="cartao-em-breve__cabecalho">
-              <span class="cartao-em-breve__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M6 10l6-6 6 6"/><path d="M4 20h16"/></svg></span>
-              <h2 class="painel__titulo cartao-em-breve__titulo">Enviar arquivo</h2>
-              <span class="selo-em-breve">em breve</span>
-            </div>
-            <p class="cartao-em-breve__descricao">Importação de extratos e comprovantes.</p>
-          </section>
-        </div>
-
-      </div>
     </main>
   </div>
 </div>
 
-<div id="modal-nova-movimentacao" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-movimentacao">
+<div id="modal-form-pendencia" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-pendencia">
   <div class="modal__conteudo">
-    <h2 class="painel__titulo" id="titulo-modal-movimentacao">Nova movimentação</h2>
-    <form id="form-movimentacao" class="formulario">
-      <p class="erro-formulario" id="erro-movimentacao" role="alert"></p>
+    <h2 class="painel__titulo" id="titulo-modal-pendencia">Nova pendência</h2>
+    <form id="form-pendencia" class="formulario">
+      <p class="erro-formulario" id="erro-pendencia" role="alert"></p>
+      <input type="hidden" name="id" />
 
       <div class="campo-grupo-tipo" role="radiogroup" aria-label="Tipo">
         <label class="opcao-tipo">
-          <input type="radio" name="tipo" value="receita" checked />
+          <input type="radio" name="tipo" value="receita" />
           <span>Receita</span>
         </label>
         <label class="opcao-tipo">
-          <input type="radio" name="tipo" value="despesa" />
+          <input type="radio" name="tipo" value="despesa" checked />
           <span>Despesa</span>
         </label>
       </div>
+
+      <label class="campo">
+        <span>Descrição</span>
+        <input type="text" name="descricao" required maxlength="120" placeholder="Ex: Aluguel" />
+      </label>
 
       <label class="campo">
         <span>Valor</span>
@@ -228,37 +142,75 @@
 
       <label class="campo">
         <span>Categoria</span>
-        <select name="categoria_id" id="select-categoria" required></select>
+        <select name="categoria_id" id="select-categoria-pendencia" required></select>
       </label>
 
-      <button type="button" id="btn-toggle-nova-categoria" class="link-acao link-acao--alternar">+ nova categoria</button>
+      <label class="campo">
+        <span>Conta padrão (opcional)</span>
+        <select name="conta_id" id="select-conta-pendencia">
+          <option value="">Nenhuma</option>
+        </select>
+      </label>
 
-      <div id="bloco-nova-categoria" class="bloco-nova-categoria oculto">
-        <label class="campo">
-          <span>Nome da categoria</span>
-          <input type="text" id="input-nome-categoria" maxlength="80" placeholder="Ex: Freelas" />
+      <div class="campo-grupo-tipo" role="radiogroup" aria-label="Recorrência">
+        <label class="opcao-tipo">
+          <input type="radio" name="recorrente" value="nao" checked />
+          <span>Avulsa</span>
         </label>
-        <button type="button" id="btn-salvar-categoria" class="btn btn--secundario btn--pequeno">Salvar categoria</button>
+        <label class="opcao-tipo">
+          <input type="radio" name="recorrente" value="sim" />
+          <span>Recorrente (mensal)</span>
+        </label>
       </div>
 
-      <label class="campo">
-        <span>Conta</span>
-        <select name="conta_id" id="select-conta" required></select>
+      <label class="campo" id="campo-data-vencimento">
+        <span>Data de vencimento</span>
+        <input type="date" name="data_vencimento" />
       </label>
 
-      <label class="campo">
-        <span>Descrição</span>
-        <input type="text" name="descricao" maxlength="255" placeholder="Opcional" />
-      </label>
-
-      <label class="campo">
-        <span>Data</span>
-        <input type="date" name="data" required />
+      <label class="campo oculto" id="campo-dia-vencimento">
+        <span>Dia do vencimento (todo mês)</span>
+        <input type="number" name="dia_vencimento" min="1" max="31" placeholder="Ex: 5" />
       </label>
 
       <div class="modal__acoes">
-        <button type="button" id="btn-cancelar-movimentacao" class="btn btn--fantasma">Cancelar</button>
-        <button type="submit" class="btn btn--principal">Adicionar</button>
+        <button type="button" id="btn-cancelar-pendencia" class="btn btn--fantasma">Cancelar</button>
+        <button type="submit" class="btn btn--principal">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="modal-pagar-pendencia" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-pagar">
+  <div class="modal__conteudo">
+    <h2 class="painel__titulo" id="titulo-modal-pagar">Marcar como paga</h2>
+    <form id="form-pagar-pendencia" class="formulario">
+      <p class="erro-formulario" id="erro-pagar-pendencia" role="alert"></p>
+      <input type="hidden" name="data_vencimento" />
+
+      <label class="campo">
+        <span>Conta</span>
+        <select name="conta_id" id="select-conta-pagamento" required></select>
+      </label>
+
+      <label class="campo">
+        <span>Valor pago</span>
+        <input type="number" name="valor" step="0.01" min="0.01" required />
+      </label>
+
+      <label class="campo">
+        <span>Data do pagamento</span>
+        <input type="date" name="data" required />
+      </label>
+
+      <label class="campo">
+        <span>Descrição (opcional)</span>
+        <input type="text" name="descricao" maxlength="255" />
+      </label>
+
+      <div class="modal__acoes">
+        <button type="button" id="btn-cancelar-pagar-pendencia" class="btn btn--fantasma">Cancelar</button>
+        <button type="submit" class="btn btn--principal">Confirmar pagamento</button>
       </div>
     </form>
   </div>
@@ -285,13 +237,24 @@
   </div>
 </div>
 
+<div id="modal-confirmar" class="modal oculto" role="alertdialog" aria-modal="true" aria-labelledby="confirmar-mensagem">
+  <div class="modal__conteudo modal__conteudo--confirmar">
+    <p id="confirmar-mensagem" class="confirmar__mensagem"></p>
+    <div class="modal__acoes">
+      <button type="button" id="btn-confirmar-nao" class="btn btn--fantasma">Cancelar</button>
+      <button type="button" id="btn-confirmar-sim" class="btn btn--perigo">Apagar</button>
+    </div>
+  </div>
+</div>
+
 <div id="regiao-toast" class="regiao-toast" aria-live="polite"></div>
 
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/tema.js"></script>
 <script src="js/api.js"></script>
-<script src="js/app.js"></script>
+<script src="js/confirmar.js"></script>
+<script src="js/pendencias.js"></script>
 <script src="js/sidebar.js"></script>
 <script src="js/usuario.js"></script>
 </body>

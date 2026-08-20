@@ -85,6 +85,16 @@ s, b = call("POST", "/auth/login", {"username": "bianca@example.com", "password"
 check("login usuario2 -> 200 com token", s == 200 and "access_token" in b, f"status={s}")
 token2 = b["access_token"] if s == 200 else None
 
+# Movimentação exige conta_id desde a Fase 1 (v2.1.0) — cria uma conta pra
+# cada usuário antes de qualquer POST /movimentacoes.
+s, b = call("POST", "/contas", {"nome_banco": "Banco Teste"}, token=token1)
+check("criar conta usuario1", s == 201, f"status={s}")
+conta1_id = b["id"] if s == 201 else None
+
+s, b = call("POST", "/contas", {"nome_banco": "Banco Teste"}, token=token2)
+check("criar conta usuario2", s == 201, f"status={s}")
+conta2_id = b["id"] if s == 201 else None
+
 # 5) token invalido
 s, b = call("GET", "/categorias", token="token.forjado.invalido")
 check("token forjado -> 401", s == 401, f"status={s}")
@@ -110,15 +120,15 @@ nomes = [c["nome"] for c in b] if s == 200 else []
 check("usuario2 nao ve categoria custom do usuario1", "Investimentos" not in nomes, f"nomes={len(nomes)}")
 
 # 10) criar movimentacoes para usuario1 (sem passar usuario_id, vem do token)
-s, b = call("POST", "/movimentacoes", {"valor": 3000.00, "descricao": "Salário Agosto", "categoria_id": cat_salario}, token=token1)
+s, b = call("POST", "/movimentacoes", {"valor": 3000.00, "descricao": "Salário Agosto", "categoria_id": cat_salario, "conta_id": conta1_id}, token=token1)
 check("criar receita usuario1", s == 201, f"status={s}")
 
-s, b = call("POST", "/movimentacoes", {"valor": 450.50, "descricao": "Mercado", "categoria_id": cat_alimentacao}, token=token1)
+s, b = call("POST", "/movimentacoes", {"valor": 450.50, "descricao": "Mercado", "categoria_id": cat_alimentacao, "conta_id": conta1_id}, token=token1)
 check("criar despesa usuario1", s == 201, f"status={s}")
 despesa_id = b["id"] if s == 201 else None
 
 # 11) usuario2 tenta criar movimentacao usando categoria custom do usuario1 -> 403
-s, b = call("POST", "/movimentacoes", {"valor": 100, "categoria_id": cat_custom_id}, token=token2)
+s, b = call("POST", "/movimentacoes", {"valor": 100, "categoria_id": cat_custom_id, "conta_id": conta2_id}, token=token2)
 check("usuario2 usa categoria de usuario1 -> 403", s == 403, f"status={s}")
 
 # 12) historico do usuario1
@@ -158,7 +168,7 @@ s, b = call("PATCH", f"/categorias/{cat_custom_id}", {"nome": "Roubada"}, token=
 check("usuario2 edita categoria de usuario1 -> 404", s == 404, f"status={s}")
 
 # 21) criar nova movimentacao pra testar PATCH
-s, b = call("POST", "/movimentacoes", {"valor": 100.00, "descricao": "Original", "categoria_id": cat_salario}, token=token1)
+s, b = call("POST", "/movimentacoes", {"valor": 100.00, "descricao": "Original", "categoria_id": cat_salario, "conta_id": conta1_id}, token=token1)
 mov_id = b["id"] if s == 201 else None
 check("criar movimentacao para teste de patch", s == 201, f"status={s}")
 
@@ -177,7 +187,7 @@ check("PATCH movimentacao inexistente -> 404", s == 404, f"status={s}")
 # 25) preparar dados para paginacao/ordenacao: criar mais 4 movimentacoes de despesa com valores diferentes
 valores = [10, 40, 20, 30]
 for v in valores:
-    call("POST", "/movimentacoes", {"valor": v, "descricao": f"Despesa {v}", "categoria_id": cat_alimentacao}, token=token1)
+    call("POST", "/movimentacoes", {"valor": v, "descricao": f"Despesa {v}", "categoria_id": cat_alimentacao, "conta_id": conta1_id}, token=token1)
 
 # nesse ponto usuario1 tem: 1 receita original (test 10, ainda existe) +
 # 1 movimentacao do teste de patch (test 21, editada para 250.75) +

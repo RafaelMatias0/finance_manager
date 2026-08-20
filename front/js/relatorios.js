@@ -8,10 +8,8 @@ document.addEventListener("sessao-expirada", () => {
   window.location.href = "index.html";
 });
 
-document.getElementById("btn-sair").addEventListener("click", () => {
-  Auth.limparToken();
-  window.location.href = "index.html";
-});
+// O botão "Sair" agora vive na sidebar (js/sidebar.js cuida dele, já que
+// ela é compartilhada entre todas as páginas logadas).
 
 let categorias = [];
 const graficos = {}; // registro de instâncias Chart.js, pra destruir antes de recriar
@@ -27,14 +25,28 @@ function destruirGrafico(chave) {
   }
 }
 
+// Canvas (Chart.js) não entende var(--...) — resolve pra cor de verdade na
+// hora de montar cada gráfico, pra sempre pegar o tema atual em vez de um
+// hex fixo do modo claro.
+function corToken(nome) {
+  return getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
+}
+
+// Cache do último resultado renderizado em cada aba — usado só pra
+// re-montar os gráficos com as cores certas quando o tema muda em runtime
+// (ver "tema-alterado" no fim do arquivo); o resto do resultado é
+// re-renderizado de brinde, idempotente.
+let ultimoDadosPersonalizado = null;
+let ultimoDadosComparativo = null;
+
 // ---------- Abas ----------
 
-document.querySelectorAll(".aba-relatorio").forEach((aba) => {
+document.querySelectorAll(".abas--conteudo .aba").forEach((aba) => {
   aba.addEventListener("click", () => mostrarAba(aba.dataset.painel));
 });
 
 function mostrarAba(nome) {
-  document.querySelectorAll(".aba-relatorio").forEach((a) => {
+  document.querySelectorAll(".abas--conteudo .aba").forEach((a) => {
     const ativa = a.dataset.painel === nome;
     a.classList.toggle("is-ativa", ativa);
     a.setAttribute("aria-selected", String(ativa));
@@ -84,7 +96,21 @@ function preencherSelectsCategoria() {
     // Só pra já vir com duas categorias diferentes selecionadas por padrão
     if (categorias[indice]) select.value = categorias[indice].id;
   });
+  sincronizarSelectsComparativo();
 }
+
+// Desabilita, em cada select, a categoria já escolhida no outro — antes só
+// dava pra descobrir "categorias iguais" depois de clicar "Comparar" e
+// ver o erro; agora a opção repetida nem aparece clicável.
+function sincronizarSelectsComparativo() {
+  const select1 = document.getElementById("c-categoria-1");
+  const select2 = document.getElementById("c-categoria-2");
+  Array.from(select1.options).forEach((opt) => { opt.disabled = opt.value !== "" && opt.value === select2.value; });
+  Array.from(select2.options).forEach((opt) => { opt.disabled = opt.value !== "" && opt.value === select1.value; });
+}
+
+document.getElementById("c-categoria-1").addEventListener("change", sincronizarSelectsComparativo);
+document.getElementById("c-categoria-2").addEventListener("change", sincronizarSelectsComparativo);
 
 // ================= AUTOMÁTICOS =================
 
@@ -114,7 +140,7 @@ async function carregarRelatoriosAutomaticos() {
       <td>${rotuloTipo}</td>
       <td>${formatarDataBR(r.data_inicio)} – ${formatarDataBR(r.data_fim)}</td>
       <td>${new Date(r.criado_em).toLocaleString("pt-BR")}</td>
-      <td><span class="link-acao">Ver</span></td>
+      <td><span class="link-acao link-acao--navegacao">Ver</span></td>
     `;
     tr.addEventListener("click", () => visualizarRelatorioAutomatico(r));
     corpo.appendChild(tr);
@@ -167,15 +193,19 @@ document.getElementById("form-personalizado").addEventListener("submit", async (
     categoria_id: document.getElementById("p-categoria").value || undefined,
   };
 
+  const destravar = travarBotaoEnvio(evento.target);
   try {
     const dados = await Api.relatorioPersonalizado(filtros);
     renderizarResultadoPersonalizado(dados);
   } catch (erro) {
     mostrarErro("erro-personalizado", erro.message);
+  } finally {
+    destravar();
   }
 });
 
 function renderizarResultadoPersonalizado(dados) {
+  ultimoDadosPersonalizado = dados;
   document.getElementById("resultado-personalizado").classList.remove("oculto");
 
   document.getElementById("rp-receitas").textContent = formatarMoeda(dados.saldo.total_receitas);
@@ -190,8 +220,8 @@ function renderizarResultadoPersonalizado(dados) {
     data: {
       labels: dados.grafico_diario.map((d) => formatarDataBR(d.data)),
       datasets: [
-        { label: "Receitas", data: dados.grafico_diario.map((d) => d.total_receitas), backgroundColor: "#2F6F4E" },
-        { label: "Despesas", data: dados.grafico_diario.map((d) => d.total_despesas), backgroundColor: "#B3462C" },
+        { label: "Receitas", data: dados.grafico_diario.map((d) => d.total_receitas), backgroundColor: corToken("--receita") },
+        { label: "Despesas", data: dados.grafico_diario.map((d) => d.total_despesas), backgroundColor: corToken("--despesa") },
       ],
     },
     options: { responsive: true, plugins: { legend: { position: "bottom" } } },
@@ -210,7 +240,7 @@ function renderizarResultadoPersonalizado(dados) {
       type: "doughnut",
       data: {
         labels: [gc.categoria_nome, "Restante"],
-        datasets: [{ data: [gc.percentual, Math.max(0, 100 - gc.percentual)], backgroundColor: ["#A9862E", "#D3D6C9"] }],
+        datasets: [{ data: [gc.percentual, Math.max(0, 100 - gc.percentual)], backgroundColor: [corToken("--marca"), corToken("--marca-suave")] }],
       },
       options: { responsive: true, plugins: { legend: { position: "bottom" } } },
     });
@@ -261,15 +291,19 @@ document.getElementById("form-comparativo").addEventListener("submit", async (ev
     categoria_id_2: cat2,
   };
 
+  const destravar = travarBotaoEnvio(evento.target);
   try {
     const dados = await Api.relatorioComparativo(filtros);
     renderizarResultadoComparativo(dados);
   } catch (erro) {
     mostrarErro("erro-comparativo", erro.message);
+  } finally {
+    destravar();
   }
 });
 
 function renderizarResultadoComparativo(dados) {
+  ultimoDadosComparativo = dados;
   document.getElementById("resultado-comparativo").classList.remove("oculto");
 
   document.getElementById("rc-nome-1").textContent = dados.categoria_1.nome;
@@ -291,13 +325,15 @@ function renderizarResultadoComparativo(dados) {
   // Gráfico de linhas comparativo
   destruirGrafico("linha-c");
   const ctxLinha = document.getElementById("grafico-linha-c").getContext("2d");
+  const corCat1 = corToken("--receita");
+  const corCat2 = corToken("--despesa");
   graficos["linha-c"] = new Chart(ctxLinha, {
     type: "line",
     data: {
       labels: dados.grafico_diario_comparativo.map((d) => formatarDataBR(d.data)),
       datasets: [
-        { label: dados.categoria_1.nome, data: dados.grafico_diario_comparativo.map((d) => d.categoria_1_total), borderColor: "#2F6F4E", backgroundColor: "#2F6F4E", tension: 0.15 },
-        { label: dados.categoria_2.nome, data: dados.grafico_diario_comparativo.map((d) => d.categoria_2_total), borderColor: "#B3462C", backgroundColor: "#B3462C", tension: 0.15 },
+        { label: dados.categoria_1.nome, data: dados.grafico_diario_comparativo.map((d) => d.categoria_1_total), borderColor: corCat1, backgroundColor: corCat1, tension: 0.15 },
+        { label: dados.categoria_2.nome, data: dados.grafico_diario_comparativo.map((d) => d.categoria_2_total), borderColor: corCat2, backgroundColor: corCat2, tension: 0.15 },
       ],
     },
     options: { responsive: true, plugins: { legend: { position: "bottom" } } },
@@ -319,7 +355,7 @@ function renderizarResultadoComparativo(dados) {
         labels: dados.grafico_participacao_individual.map((p) => p.categoria),
         datasets: [{
           data: dados.grafico_participacao_individual.map((p) => p.percentual),
-          backgroundColor: ["#2F6F4E", "#B3462C", "#D3D6C9"],
+          backgroundColor: [corToken("--receita"), corToken("--despesa"), corToken("--marca-suave")],
         }],
       },
       options: { responsive: true, plugins: { legend: { position: "bottom" } } },
@@ -333,7 +369,7 @@ function renderizarResultadoComparativo(dados) {
         labels: dados.grafico_participacao_combinada.map((p) => p.categoria),
         datasets: [{
           data: dados.grafico_participacao_combinada.map((p) => p.percentual),
-          backgroundColor: ["#A9862E", "#D3D6C9"],
+          backgroundColor: [corToken("--marca"), corToken("--marca-suave")],
         }],
       },
       options: { responsive: true, plugins: { legend: { position: "bottom" } } },
@@ -365,5 +401,17 @@ function renderizarResultadoComparativo(dados) {
     });
   }
 }
+
+// Chart.js não escuta variável CSS sozinho — troca de tema em runtime
+// precisa recriar os gráficos visíveis no momento pra pegar as cores
+// novas. Só re-renderiza o que já foi gerado E está com a aba aberta.
+document.addEventListener("tema-alterado", () => {
+  if (ultimoDadosPersonalizado && !document.getElementById("resultado-personalizado").classList.contains("oculto")) {
+    renderizarResultadoPersonalizado(ultimoDadosPersonalizado);
+  }
+  if (ultimoDadosComparativo && !document.getElementById("resultado-comparativo").classList.contains("oculto")) {
+    renderizarResultadoComparativo(ultimoDadosComparativo);
+  }
+});
 
 iniciar();

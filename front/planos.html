@@ -17,61 +17,15 @@
     }
   })();
 </script>
-<title>Cofre — controle financeiro pessoal</title>
+<title>Planos e Metas — Cofre</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/style.css" />
 </head>
-<body data-pagina="inicio">
+<body data-pagina="planos">
 
-<header class="topo" id="topo-publico">
-  <div class="topo__marca">
-    <span class="topo__selo">C</span>
-    <span class="topo__nome">Cofre</span>
-  </div>
-</header>
-
-<main id="tela-auth" class="tela-auth">
-  <div class="cartao-auth">
-    <div class="abas cartao-auth__abas" role="tablist">
-      <button class="aba is-ativa" data-aba="login" role="tab" aria-selected="true">Entrar</button>
-      <button class="aba" data-aba="cadastro" role="tab" aria-selected="false">Criar conta</button>
-    </div>
-
-    <form id="form-login" class="formulario" data-painel="login">
-      <p class="erro-formulario" id="erro-login" role="alert"></p>
-      <label class="campo">
-        <span>Email</span>
-        <input type="email" name="email" required autocomplete="email" />
-      </label>
-      <label class="campo">
-        <span>Senha</span>
-        <input type="password" name="senha" required autocomplete="current-password" />
-      </label>
-      <button type="submit" class="btn btn--principal">Entrar</button>
-    </form>
-
-    <form id="form-cadastro" class="formulario oculto" data-painel="cadastro">
-      <p class="erro-formulario" id="erro-cadastro" role="alert"></p>
-      <label class="campo">
-        <span>Nome</span>
-        <input type="text" name="nome" required autocomplete="name" />
-      </label>
-      <label class="campo">
-        <span>Email</span>
-        <input type="email" name="email" required autocomplete="email" />
-      </label>
-      <label class="campo">
-        <span>Senha</span>
-        <input type="password" name="senha" required minlength="6" autocomplete="new-password" />
-      </label>
-      <button type="submit" class="btn btn--principal">Criar conta</button>
-    </form>
-  </div>
-</main>
-
-<div id="app-shell" class="app-shell oculto">
+<div id="app-shell" class="app-shell">
 
   <aside class="sidebar" id="sidebar">
     <div class="sidebar__topo">
@@ -114,8 +68,8 @@
   <div class="app-shell__conteudo">
     <header class="topo">
       <div>
-        <h1 class="topo__titulo">Início</h1>
-        <p class="topo__subtitulo">Seu resumo do dia, num relance.</p>
+        <h1 class="topo__titulo">Planos e Metas</h1>
+        <p class="topo__subtitulo">Guarde dinheiro ou quite dívidas, um passo de cada vez.</p>
       </div>
       <div class="topo__acoes">
         <button type="button" id="btn-alternar-tema" class="btn-icone-tema" aria-label="Alternar tema claro/escuro">
@@ -143,112 +97,161 @@
       </div>
     </header>
 
-    <main id="tela-app" class="tela-app">
+    <main class="tela-app">
 
-      <div class="grid-inicio">
-
-        <div class="grid-inicio__linha">
-          <section class="painel" aria-label="Lançamentos recentes">
-            <div class="painel__cabecalho">
-              <h2 class="painel__titulo">Lançamentos</h2>
-            </div>
-
-            <div class="acoes-rapidas">
-              <button type="button" id="btn-nova-receita" class="btn-rapido btn-rapido--receita">
-                <span class="btn-rapido__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg></span>
-                Receita
-              </button>
-              <button type="button" id="btn-nova-despesa" class="btn-rapido btn-rapido--despesa">
-                <span class="btn-rapido__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12l7 7 7-7"/></svg></span>
-                Despesa
-              </button>
-            </div>
-
-            <div id="lista-lancamentos-recentes" class="lista-lancamentos-inicio"></div>
-            <p id="lancamentos-recentes-vazio" class="estado-vazio oculto">Nenhum lançamento ainda.</p>
-            <a href="controle.html" class="link-acao link-acao--navegacao">Ver histórico completo →</a>
-          </section>
-
-          <section class="painel" aria-label="Saldo por conta">
-            <div class="painel__cabecalho">
-              <h2 class="painel__titulo">Contas</h2>
-            </div>
-            <div id="resumo-contas" class="resumo-contas-inicio"></div>
-            <p id="resumo-contas-vazio" class="estado-vazio oculto">Nenhuma conta cadastrada.</p>
-            <a href="contas.html" class="link-acao link-acao--navegacao">Gerenciar contas →</a>
-          </section>
+      <section class="painel" aria-label="Planos e Metas">
+        <div class="painel__cabecalho">
+          <h2 class="painel__titulo">Planos e Metas</h2>
+          <button type="button" id="btn-novo-plano" class="link-acao">+ novo plano</button>
         </div>
+        <div id="lista-planos" class="lista-planos"></div>
+        <p id="planos-vazio" class="estado-vazio oculto">Nenhum plano cadastrado ainda.</p>
+      </section>
 
-        <div class="grid-inicio__linha">
-          <section class="painel" aria-label="Pendências">
-            <div class="painel__cabecalho">
-              <h2 class="painel__titulo">Pendências</h2>
-            </div>
-            <div id="resumo-pendencias" class="resumo-pendencias-inicio"></div>
-            <p id="resumo-pendencias-vazio" class="estado-vazio oculto">Nenhuma pendência no momento.</p>
-            <a href="pendencias.html" class="link-acao link-acao--navegacao">Gerenciar pendências →</a>
-          </section>
-
-          <section class="cartao-em-breve" aria-label="Enviar arquivo (em breve)">
-            <div class="cartao-em-breve__cabecalho">
-              <span class="cartao-em-breve__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M6 10l6-6 6 6"/><path d="M4 20h16"/></svg></span>
-              <h2 class="painel__titulo cartao-em-breve__titulo">Enviar arquivo</h2>
-              <span class="selo-em-breve">em breve</span>
-            </div>
-            <p class="cartao-em-breve__descricao">Importação de extratos e comprovantes.</p>
-          </section>
-        </div>
-
-      </div>
     </main>
   </div>
 </div>
 
-<div id="modal-nova-movimentacao" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-movimentacao">
+<div id="modal-form-plano" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-plano">
   <div class="modal__conteudo">
-    <h2 class="painel__titulo" id="titulo-modal-movimentacao">Nova movimentação</h2>
-    <form id="form-movimentacao" class="formulario">
-      <p class="erro-formulario" id="erro-movimentacao" role="alert"></p>
+    <h2 class="painel__titulo" id="titulo-modal-plano">Novo plano</h2>
 
-      <div class="campo-grupo-tipo" role="radiogroup" aria-label="Tipo">
-        <label class="opcao-tipo">
-          <input type="radio" name="tipo" value="receita" checked />
-          <span>Receita</span>
+    <div class="passos-plano" id="passos-plano-indicador">
+      <button type="button" class="passos-plano__item" data-passo="1" aria-label="Passo 1: Básico">
+        <span class="passos-plano__bolha">1</span>
+      </button>
+      <span class="passos-plano__linha" data-linha="1"></span>
+      <button type="button" class="passos-plano__item" data-passo="2" aria-label="Passo 2: Como funciona">
+        <span class="passos-plano__bolha">2</span>
+      </button>
+      <span class="passos-plano__linha" data-linha="2"></span>
+      <button type="button" class="passos-plano__item" data-passo="3" aria-label="Passo 3: Valores">
+        <span class="passos-plano__bolha">3</span>
+      </button>
+    </div>
+
+    <form id="form-plano" class="formulario">
+      <p class="erro-formulario" id="erro-plano" role="alert"></p>
+      <input type="hidden" name="id" />
+
+      <div class="formulario-passo" id="formulario-passo-1" data-passo="1">
+        <label class="campo">
+          <span>Nome</span>
+          <input type="text" name="nome" required maxlength="120" placeholder="Ex: Reserva de emergência" />
         </label>
-        <label class="opcao-tipo">
-          <input type="radio" name="tipo" value="despesa" />
-          <span>Despesa</span>
+
+        <div class="campo-grupo-tipo" role="radiogroup" aria-label="Tipo de plano" id="grupo-tipo-plano">
+          <label class="opcao-tipo">
+            <input type="radio" name="tipo" value="guardar_dinheiro" checked />
+            <span>Guardar dinheiro</span>
+          </label>
+          <label class="opcao-tipo">
+            <input type="radio" name="tipo" value="quitar_divida" />
+            <span>Quitar dívida</span>
+          </label>
+        </div>
+
+        <label class="campo">
+          <span>Conta</span>
+          <select name="conta_id" id="select-conta-plano" required></select>
+        </label>
+
+        <label class="campo">
+          <span>Mês de início</span>
+          <input type="month" name="mes_inicio" required />
         </label>
       </div>
+
+      <div class="formulario-passo oculto" id="formulario-passo-2" data-passo="2">
+        <div class="campo-grupo-tipo" role="radiogroup" aria-label="Como guardar" id="grupo-guardar-modo">
+          <label class="opcao-tipo">
+            <input type="radio" name="guardar_modo" value="simples" checked />
+            <span>Meta simples</span>
+          </label>
+          <label class="opcao-tipo">
+            <input type="radio" name="guardar_modo" value="reducao_categoria" />
+            <span>Reduzir categoria</span>
+          </label>
+        </div>
+
+        <div class="campo-grupo-tipo oculto" role="radiogroup" aria-label="Como quitar" id="grupo-divida-modo">
+          <label class="opcao-tipo">
+            <input type="radio" name="divida_modo" value="prazo" checked />
+            <span>Prazo livre</span>
+          </label>
+          <label class="opcao-tipo">
+            <input type="radio" name="divida_modo" value="parcelas" />
+            <span>Parcelas</span>
+          </label>
+        </div>
+
+        <label class="campo oculto" id="campo-categoria-plano">
+          <span id="rotulo-categoria-plano">Categoria</span>
+          <select name="categoria_id" id="select-categoria-plano"></select>
+        </label>
+
+        <div class="campo-grupo-tipo oculto" role="radiogroup" aria-label="Critério de redução" id="grupo-criterio-reducao">
+          <label class="opcao-tipo">
+            <input type="radio" name="criterio_reducao" value="percentual_receita" checked />
+            <span>% da receita</span>
+          </label>
+          <label class="opcao-tipo">
+            <input type="radio" name="criterio_reducao" value="valor_fixo" />
+            <span>Valor fixo vs. média</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="formulario-passo oculto" id="formulario-passo-3" data-passo="3">
+        <label class="campo oculto" id="campo-alvo-percentual">
+          <span>Gastar no máximo (% da receita do mês)</span>
+          <input type="number" name="alvo_percentual" step="0.01" min="0.01" max="100" />
+        </label>
+
+        <label class="campo oculto" id="campo-alvo-valor-reducao">
+          <span>Reduzir (R$) vs. média dos últimos 3 meses</span>
+          <input type="number" name="alvo_valor_reducao" step="0.01" min="0.01" />
+        </label>
+
+        <label class="campo oculto" id="campo-valor-alvo">
+          <span id="rotulo-valor-alvo">Valor alvo</span>
+          <input type="number" name="valor_alvo" step="0.01" min="0.01" />
+        </label>
+
+        <label class="campo oculto" id="campo-data-prazo">
+          <span>Prazo (data-alvo)</span>
+          <input type="date" name="data_prazo" />
+        </label>
+
+        <label class="campo oculto" id="campo-numero-parcelas">
+          <span>Número de parcelas</span>
+          <input type="number" name="numero_parcelas" min="1" max="600" />
+        </label>
+
+        <label class="campo oculto" id="campo-dia-vencimento-plano">
+          <span>Dia do vencimento (todo mês)</span>
+          <input type="number" name="dia_vencimento" min="1" max="31" />
+        </label>
+      </div>
+
+      <div class="modal__acoes">
+        <button type="button" id="btn-cancelar-plano" class="btn btn--fantasma">Cancelar</button>
+        <button type="button" id="btn-passo-anterior-plano" class="btn btn--fantasma oculto">Anterior</button>
+        <button type="button" id="btn-avancar-plano" class="btn btn--principal">Próximo</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="modal-pagamento-plano" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-pagamento-plano">
+  <div class="modal__conteudo">
+    <h2 class="painel__titulo" id="titulo-modal-pagamento-plano">Registrar pagamento</h2>
+    <form id="form-pagamento-plano" class="formulario">
+      <p class="erro-formulario" id="erro-pagamento-plano" role="alert"></p>
 
       <label class="campo">
         <span>Valor</span>
-        <input type="number" name="valor" step="0.01" min="0.01" required placeholder="0,00" />
-      </label>
-
-      <label class="campo">
-        <span>Categoria</span>
-        <select name="categoria_id" id="select-categoria" required></select>
-      </label>
-
-      <button type="button" id="btn-toggle-nova-categoria" class="link-acao link-acao--alternar">+ nova categoria</button>
-
-      <div id="bloco-nova-categoria" class="bloco-nova-categoria oculto">
-        <label class="campo">
-          <span>Nome da categoria</span>
-          <input type="text" id="input-nome-categoria" maxlength="80" placeholder="Ex: Freelas" />
-        </label>
-        <button type="button" id="btn-salvar-categoria" class="btn btn--secundario btn--pequeno">Salvar categoria</button>
-      </div>
-
-      <label class="campo">
-        <span>Conta</span>
-        <select name="conta_id" id="select-conta" required></select>
-      </label>
-
-      <label class="campo">
-        <span>Descrição</span>
-        <input type="text" name="descricao" maxlength="255" placeholder="Opcional" />
+        <input type="number" name="valor" step="0.01" min="0.01" required />
       </label>
 
       <label class="campo">
@@ -256,9 +259,14 @@
         <input type="date" name="data" required />
       </label>
 
+      <label class="campo">
+        <span>Descrição (opcional)</span>
+        <input type="text" name="descricao" maxlength="255" />
+      </label>
+
       <div class="modal__acoes">
-        <button type="button" id="btn-cancelar-movimentacao" class="btn btn--fantasma">Cancelar</button>
-        <button type="submit" class="btn btn--principal">Adicionar</button>
+        <button type="button" id="btn-cancelar-pagamento-plano" class="btn btn--fantasma">Cancelar</button>
+        <button type="submit" class="btn btn--principal">Confirmar</button>
       </div>
     </form>
   </div>
@@ -285,13 +293,24 @@
   </div>
 </div>
 
+<div id="modal-confirmar" class="modal oculto" role="alertdialog" aria-modal="true" aria-labelledby="confirmar-mensagem">
+  <div class="modal__conteudo modal__conteudo--confirmar">
+    <p id="confirmar-mensagem" class="confirmar__mensagem"></p>
+    <div class="modal__acoes">
+      <button type="button" id="btn-confirmar-nao" class="btn btn--fantasma">Cancelar</button>
+      <button type="button" id="btn-confirmar-sim" class="btn btn--perigo">Apagar</button>
+    </div>
+  </div>
+</div>
+
 <div id="regiao-toast" class="regiao-toast" aria-live="polite"></div>
 
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/tema.js"></script>
 <script src="js/api.js"></script>
-<script src="js/app.js"></script>
+<script src="js/confirmar.js"></script>
+<script src="js/planos.js"></script>
 <script src="js/sidebar.js"></script>
 <script src="js/usuario.js"></script>
 </body>

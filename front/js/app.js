@@ -1,35 +1,31 @@
 /**
- * Estado da tela de histórico (paginação + filtros ativos).
+ * Início: resumo de contas (saldo por conta, só leitura) + resumo de
+ * pendências (só leitura) + formulário de nova movimentação. O Histórico
+ * completo (filtros, paginação, edição) saiu daqui na Fase 2 — agora mora
+ * em controle.html/js/controle.js. Criar/editar/pagar pendência mora em
+ * pendencias.html/js/pendencias.js.
  */
 const estado = {
   categorias: [],
-  limite: 10,
-  skip: 0,
-  total: 0,
-  filtros: {},
+  contas: [],
+  pendencias: [],
 };
 
 // Utilidades (formatarMoeda, formatarDataBR, hojeISO, escaparHtml, toast,
 // mostrarErro, limparErro) vêm de js/utils.js, carregado antes deste arquivo.
 
-function categoriaPorId(id) {
-  return estado.categorias.find((c) => c.id === id);
-}
-
 // ---------- Navegação entre telas ----------
 
 function mostrarTelaAuth() {
+  document.getElementById("topo-publico").classList.remove("oculto");
   document.getElementById("tela-auth").classList.remove("oculto");
-  document.getElementById("tela-app").classList.add("oculto");
-  document.getElementById("btn-sair").classList.add("oculto");
-  document.getElementById("link-relatorios").classList.add("oculto");
+  document.getElementById("app-shell").classList.add("oculto");
 }
 
 async function mostrarTelaApp() {
+  document.getElementById("topo-publico").classList.add("oculto");
   document.getElementById("tela-auth").classList.add("oculto");
-  document.getElementById("tela-app").classList.remove("oculto");
-  document.getElementById("btn-sair").classList.remove("oculto");
-  document.getElementById("link-relatorios").classList.remove("oculto");
+  document.getElementById("app-shell").classList.remove("oculto");
   await iniciarDashboard();
 }
 
@@ -60,6 +56,7 @@ document.getElementById("form-login").addEventListener("submit", async (evento) 
   evento.preventDefault();
   limparErro("erro-login");
   const dados = new FormData(evento.target);
+  const destravar = travarBotaoEnvio(evento.target);
   try {
     const resposta = await Api.login(dados.get("email"), dados.get("senha"));
     Auth.setToken(resposta.access_token);
@@ -67,6 +64,8 @@ document.getElementById("form-login").addEventListener("submit", async (evento) 
     await mostrarTelaApp();
   } catch (erro) {
     mostrarErro("erro-login", erro.status === 401 ? "Email ou senha incorretos." : erro.message);
+  } finally {
+    destravar();
   }
 });
 
@@ -74,6 +73,7 @@ document.getElementById("form-cadastro").addEventListener("submit", async (event
   evento.preventDefault();
   limparErro("erro-cadastro");
   const dados = new FormData(evento.target);
+  const destravar = travarBotaoEnvio(evento.target);
   try {
     await Api.cadastrar(dados.get("nome"), dados.get("email"), dados.get("senha"));
     const resposta = await Api.login(dados.get("email"), dados.get("senha"));
@@ -82,20 +82,25 @@ document.getElementById("form-cadastro").addEventListener("submit", async (event
     await mostrarTelaApp();
   } catch (erro) {
     mostrarErro("erro-cadastro", erro.status === 409 ? "Esse email já está cadastrado." : erro.message);
+  } finally {
+    destravar();
   }
-});
-
-document.getElementById("btn-sair").addEventListener("click", () => {
-  Auth.limparToken();
-  mostrarTelaAuth();
 });
 
 // ---------- Dashboard: inicialização ----------
 
 async function iniciarDashboard() {
   document.querySelector('#form-movimentacao input[name="data"]').value = hojeISO();
+  // carregarCategorias() vai primeiro e isolado: renderizarLancamentosRecentes
+  // usa categoriaPorId (estado.categorias) pra decidir cor/sinal de cada
+  // lançamento, então não pode rodar em paralelo com ela (senão corre risco
+  // de ainda estar vazio quando os lançamentos chegarem).
   await carregarCategorias();
-  await Promise.all([atualizarSaldo(), carregarHistorico()]);
+  await Promise.all([carregarContas(), carregarPendencias(), carregarLancamentosRecentes(), carregarUsuarioAtual()]);
+}
+
+function categoriaPorId(id) {
+  return estado.categorias.find((c) => c.id === id);
 }
 
 async function carregarCategorias() {
@@ -106,35 +111,18 @@ async function carregarCategorias() {
 function preencherSelectCategorias() {
   const tipoSelecionado = document.querySelector('input[name="tipo"]:checked').value;
 
-  const selects = [
-    { el: document.getElementById("select-categoria"), tipo: tipoSelecionado },
-    { el: document.getElementById("select-categoria-edicao"), tipo: null },
-  ];
-
-  selects.forEach(({ el, tipo }) => {
-    const valorAtual = el.value;
-    el.innerHTML = "";
-    estado.categorias
-      .filter((c) => !tipo || c.tipo === tipo)
-      .forEach((c) => {
-        const opt = document.createElement("option");
-        opt.value = c.id;
-        opt.textContent = c.nome;
-        el.appendChild(opt);
-      });
-    if (valorAtual) el.value = valorAtual;
-  });
-
-  const filtroCategoria = document.getElementById("filtro-categoria");
-  const valorFiltroAtual = filtroCategoria.value;
-  filtroCategoria.innerHTML = '<option value="">Todas</option>';
-  estado.categorias.forEach((c) => {
-    const opt = document.createElement("option");
-    opt.value = c.id;
-    opt.textContent = `${c.nome} (${c.tipo})`;
-    filtroCategoria.appendChild(opt);
-  });
-  filtroCategoria.value = valorFiltroAtual;
+  const select = document.getElementById("select-categoria");
+  const valorAtual = select.value;
+  select.innerHTML = "";
+  estado.categorias
+    .filter((c) => c.tipo === tipoSelecionado)
+    .forEach((c) => {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.nome;
+      select.appendChild(opt);
+    });
+  if (valorAtual) select.value = valorAtual;
 }
 
 document.querySelectorAll('input[name="tipo"]').forEach((radio) => {
@@ -163,90 +151,126 @@ document.getElementById("btn-salvar-categoria").addEventListener("click", async 
   }
 });
 
-// ---------- Saldo ----------
+// ---------- Contas bancárias (card compacto, só leitura — criar/editar/
+// apagar conta e transferências agora vivem em contas.html) ----------
 
-async function atualizarSaldo() {
-  const saldo = await Api.saldo();
-  document.getElementById("valor-receitas").textContent = formatarMoeda(saldo.total_receitas);
-  document.getElementById("valor-despesas").textContent = formatarMoeda(saldo.total_despesas);
-  document.getElementById("valor-saldo").textContent = formatarMoeda(saldo.saldo);
+async function carregarContas() {
+  estado.contas = await Api.contas();
+  renderizarResumoContasInicio();
+  preencherSelectsConta();
 }
 
-// ---------- Nova movimentação ----------
+function renderizarResumoContasInicio() {
+  const lista = document.getElementById("resumo-contas");
+  const vazio = document.getElementById("resumo-contas-vazio");
+  lista.innerHTML = "";
 
-document.getElementById("form-movimentacao").addEventListener("submit", async (evento) => {
-  evento.preventDefault();
-  limparErro("erro-movimentacao");
-  const dados = new FormData(evento.target);
-
-  const corpo = {
-    valor: dados.get("valor"),
-    categoria_id: dados.get("categoria_id"),
-    descricao: dados.get("descricao") || null,
-    data: dados.get("data"),
-  };
-
-  try {
-    await Api.criarMovimentacao(corpo);
-    evento.target.reset();
-    document.querySelector('#form-movimentacao input[name="data"]').value = hojeISO();
-    preencherSelectCategorias();
-    estado.skip = 0;
-    await Promise.all([atualizarSaldo(), carregarHistorico()]);
-    toast("Movimentação adicionada.");
-  } catch (erro) {
-    mostrarErro("erro-movimentacao", erro.message);
+  if (estado.contas.length === 0) {
+    vazio.classList.remove("oculto");
+    return;
   }
-});
+  vazio.classList.add("oculto");
 
-// ---------- Filtros ----------
-
-document.getElementById("btn-toggle-filtros").addEventListener("click", () => {
-  document.getElementById("bloco-filtros").classList.toggle("oculto");
-});
-
-document.getElementById("btn-aplicar-filtros").addEventListener("click", () => {
-  estado.filtros = {
-    tipo: document.getElementById("filtro-tipo").value,
-    categoria_id: document.getElementById("filtro-categoria").value,
-    data_inicio: document.getElementById("filtro-data-inicio").value,
-    data_fim: document.getElementById("filtro-data-fim").value,
-    ordenar_por: document.getElementById("filtro-ordenar-por").value,
-    ordem: document.getElementById("filtro-ordem").value,
-  };
-  estado.skip = 0;
-  carregarHistorico();
-});
-
-document.getElementById("btn-limpar-filtros").addEventListener("click", () => {
-  document.getElementById("filtro-tipo").value = "";
-  document.getElementById("filtro-categoria").value = "";
-  document.getElementById("filtro-data-inicio").value = "";
-  document.getElementById("filtro-data-fim").value = "";
-  document.getElementById("filtro-ordenar-por").value = "data";
-  document.getElementById("filtro-ordem").value = "desc";
-  estado.filtros = {};
-  estado.skip = 0;
-  carregarHistorico();
-});
-
-// ---------- Histórico ----------
-
-async function carregarHistorico() {
-  const resposta = await Api.historico({
-    ...estado.filtros,
-    skip: estado.skip,
-    limit: estado.limite,
+  estado.contas.forEach((conta) => {
+    const item = document.createElement("div");
+    item.className = "resumo-contas-inicio__item";
+    const classeSaldo = Number(conta.saldo_atual) < 0 ? "valor--despesa" : "valor--receita";
+    item.innerHTML = `
+      <span class="resumo-contas-inicio__nome">${escaparHtml(conta.apelido || conta.nome_banco)}</span>
+      <span class="resumo-contas-inicio__saldo ${classeSaldo}">${formatarMoeda(conta.saldo_atual)}</span>
+    `;
+    lista.appendChild(item);
   });
-  estado.total = resposta.total;
-  renderizarHistorico(resposta.itens);
-  renderizarPaginacao();
 }
 
-function renderizarHistorico(itens) {
-  const corpo = document.getElementById("corpo-historico");
-  const vazio = document.getElementById("historico-vazio");
-  corpo.innerHTML = "";
+function preencherSelectsConta() {
+  const select = document.getElementById("select-conta");
+  const valorAtual = select.value;
+  select.innerHTML = "";
+  estado.contas.forEach((c) => {
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = c.apelido ? `${c.nome_banco} — ${c.apelido}` : c.nome_banco;
+    select.appendChild(opt);
+  });
+  if (valorAtual) select.value = valorAtual;
+}
+
+// ---------- Pendências (card compacto, só leitura — criar/editar/pagar
+// pendência agora vive em pendencias.html) ----------
+
+async function carregarPendencias() {
+  estado.pendencias = await Api.pendencias();
+  renderizarResumoPendenciasInicio();
+}
+
+function renderizarResumoPendenciasInicio() {
+  const lista = document.getElementById("resumo-pendencias");
+  const vazio = document.getElementById("resumo-pendencias-vazio");
+  lista.innerHTML = "";
+
+  // Achata os ciclos pendentes de todas as pendências (só as ativas fazem
+  // sentido aqui — uma pausada não deveria cobrar atenção no Início),
+  // atrasadas primeiro, depois a_vencer por data.
+  const itens = [];
+  estado.pendencias
+    .filter((p) => p.ativa)
+    .forEach((p) => {
+      p.ciclos.forEach((c) => itens.push({ descricao: p.descricao, valor: p.valor, categoria_id: p.categoria_id, ...c }));
+    });
+  itens.sort((a, b) => {
+    if (a.status !== b.status) return a.status === "atrasada" ? -1 : 1;
+    return a.data_vencimento.localeCompare(b.data_vencimento);
+  });
+
+  if (itens.length === 0) {
+    vazio.classList.remove("oculto");
+    return;
+  }
+  vazio.classList.add("oculto");
+
+  itens.slice(0, 3).forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "resumo-pendencias-inicio__item";
+    const etiquetaClasse = item.status === "atrasada" ? "etiqueta-atrasada" : "etiqueta-a-vencer";
+    const categoria = categoriaPorId(item.categoria_id);
+    const ehDespesa = categoria?.tipo === "despesa";
+    const tipoClasse = ehDespesa ? "etiqueta-tipo-despesa" : "etiqueta-tipo-receita";
+    const tipoRotulo = ehDespesa ? "Despesa" : "Receita";
+    div.innerHTML = `
+      <span class="resumo-pendencias-inicio__desc">${escaparHtml(item.descricao)}</span>
+      <span class="${tipoClasse}">${tipoRotulo}</span>
+      <span class="${etiquetaClasse}">${formatarDataBR(item.data_vencimento)}</span>
+      <span class="resumo-pendencias-inicio__valor">${formatarMoeda(item.valor)}</span>
+    `;
+    lista.appendChild(div);
+  });
+
+  if (itens.length > 3) {
+    // Antes era um <p> sem função nenhuma — parecia clicável (itálico,
+    // "+ N outras") mas não levava a lugar nenhum. Agora é um link de
+    // verdade pra pendencias.html, reforçando o mesmo destino do
+    // "Gerenciar pendências →" logo abaixo.
+    const mais = document.createElement("a");
+    mais.href = "pendencias.html";
+    mais.className = "resumo-pendencias-inicio__mais";
+    mais.textContent = `+ ${itens.length - 3} outra${itens.length - 3 > 1 ? "s" : ""} pendência${itens.length - 3 > 1 ? "s" : ""}`;
+    lista.appendChild(mais);
+  }
+}
+
+// ---------- Lançamentos recentes (card compacto, só leitura — o
+// histórico completo com filtros/edição mora em controle.html) ----------
+
+async function carregarLancamentosRecentes() {
+  const resposta = await Api.historico({ limit: 5 });
+  renderizarLancamentosRecentes(resposta.itens);
+}
+
+function renderizarLancamentosRecentes(itens) {
+  const lista = document.getElementById("lista-lancamentos-recentes");
+  const vazio = document.getElementById("lancamentos-recentes-vazio");
+  lista.innerHTML = "";
 
   if (itens.length === 0) {
     vazio.classList.remove("oculto");
@@ -256,118 +280,80 @@ function renderizarHistorico(itens) {
 
   itens.forEach((mov) => {
     const categoria = categoriaPorId(mov.categoria_id);
-    const tr = document.createElement("tr");
-
     const classeValor = categoria?.tipo === "despesa" ? "valor--despesa" : "valor--receita";
     const sinal = categoria?.tipo === "despesa" ? "−" : "+";
-
-    tr.innerHTML = `
-      <td data-label="Data">${formatarDataBR(mov.data)}</td>
-      <td data-label="Descrição">${mov.descricao ? escaparHtml(mov.descricao) : '<span style="color:var(--tinta-suave)">—</span>'}</td>
-      <td data-label="Categoria"><span class="etiqueta-categoria">${escaparHtml(categoria?.nome ?? "—")}</span></td>
-      <td data-label="Valor" class="alinhar-direita celula-valor ${classeValor}">${sinal} ${formatarMoeda(mov.valor)}</td>
-      <td data-label="Ações">
-        <div class="acoes-linha">
-          <button type="button" class="btn-editar">Editar</button>
-          <button type="button" class="btn-apagar">Apagar</button>
-        </div>
-      </td>
+    const item = document.createElement("div");
+    item.className = "lancamento-inicio__item";
+    item.innerHTML = `
+      <span class="lancamento-inicio__data">${formatarDataBR(mov.data)}</span>
+      <span class="lancamento-inicio__desc">${escaparHtml(mov.descricao || categoria?.nome || "—")}</span>
+      <span class="lancamento-inicio__valor ${classeValor}">${sinal} ${formatarMoeda(mov.valor)}</span>
     `;
-
-    tr.querySelector(".btn-editar").addEventListener("click", () => abrirModalEdicao(mov));
-    tr.querySelector(".btn-apagar").addEventListener("click", () => apagarMovimentacao(mov));
-
-    corpo.appendChild(tr);
+    lista.appendChild(item);
   });
 }
 
-function renderizarPaginacao() {
-  const inicio = estado.total === 0 ? 0 : estado.skip + 1;
-  const fim = Math.min(estado.skip + estado.limite, estado.total);
-  document.getElementById("texto-paginacao").textContent = `${inicio}–${fim} de ${estado.total}`;
-  document.getElementById("btn-pagina-anterior").disabled = estado.skip === 0;
-  document.getElementById("btn-pagina-proxima").disabled = estado.skip + estado.limite >= estado.total;
-}
+// ---------- Nova movimentação (card flutuante, aberto pelos botões
+// rápidos "Receita"/"Despesa" do card de Lançamentos) ----------
 
-document.getElementById("btn-pagina-anterior").addEventListener("click", () => {
-  estado.skip = Math.max(0, estado.skip - estado.limite);
-  carregarHistorico();
-});
-
-document.getElementById("btn-pagina-proxima").addEventListener("click", () => {
-  estado.skip += estado.limite;
-  carregarHistorico();
-});
-
-// ---------- Apagar ----------
-
-async function apagarMovimentacao(mov) {
-  const confirmado = confirm(`Apagar a movimentação de ${formatarMoeda(mov.valor)} em ${formatarDataBR(mov.data)}?`);
-  if (!confirmado) return;
-  try {
-    await Api.apagarMovimentacao(mov.id);
-    await Promise.all([atualizarSaldo(), carregarHistorico()]);
-    toast("Movimentação apagada.");
-  } catch (erro) {
-    toast(erro.message, "erro");
+function abrirModalMovimentacao(tipo) {
+  if (estado.contas.length === 0) {
+    toast("Cadastre uma conta em Contas antes de lançar uma movimentação.", "erro");
+    return;
   }
+
+  limparErro("erro-movimentacao");
+  const form = document.getElementById("form-movimentacao");
+  form.reset();
+  document.querySelector(`#form-movimentacao input[name="tipo"][value="${tipo}"]`).checked = true;
+  form.elements["data"].value = hojeISO();
+  document.getElementById("bloco-nova-categoria").classList.add("oculto");
+  preencherSelectCategorias();
+  preencherSelectsConta();
+
+  document.getElementById("modal-nova-movimentacao").classList.remove("oculto");
 }
 
-// ---------- Edição (modal) ----------
-
-let movimentacaoEmEdicao = null;
-
-function abrirModalEdicao(mov) {
-  movimentacaoEmEdicao = mov;
-  limparErro("erro-edicao");
-
-  const form = document.getElementById("form-edicao");
-  form.elements["id"].value = mov.id;
-  form.elements["valor"].value = mov.valor;
-  form.elements["descricao"].value = mov.descricao ?? "";
-  form.elements["data"].value = mov.data;
-
-  const select = document.getElementById("select-categoria-edicao");
-  select.innerHTML = "";
-  estado.categorias.forEach((c) => {
-    const opt = document.createElement("option");
-    opt.value = c.id;
-    opt.textContent = `${c.nome} (${c.tipo})`;
-    select.appendChild(opt);
-  });
-  select.value = mov.categoria_id;
-
-  document.getElementById("modal-edicao").classList.remove("oculto");
+function fecharModalMovimentacao() {
+  document.getElementById("modal-nova-movimentacao").classList.add("oculto");
 }
 
-function fecharModalEdicao() {
-  document.getElementById("modal-edicao").classList.add("oculto");
-  movimentacaoEmEdicao = null;
-}
-
-document.getElementById("btn-cancelar-edicao").addEventListener("click", fecharModalEdicao);
-
-document.getElementById("modal-edicao").addEventListener("click", (evento) => {
-  if (evento.target.id === "modal-edicao") fecharModalEdicao();
+document.getElementById("btn-nova-receita").addEventListener("click", () => abrirModalMovimentacao("receita"));
+document.getElementById("btn-nova-despesa").addEventListener("click", () => abrirModalMovimentacao("despesa"));
+document.getElementById("btn-cancelar-movimentacao").addEventListener("click", fecharModalMovimentacao);
+document.getElementById("modal-nova-movimentacao").addEventListener("click", (evento) => {
+  if (evento.target.id === "modal-nova-movimentacao") fecharModalMovimentacao();
 });
 
-document.getElementById("form-edicao").addEventListener("submit", async (evento) => {
+document.getElementById("form-movimentacao").addEventListener("submit", async (evento) => {
   evento.preventDefault();
-  limparErro("erro-edicao");
+  limparErro("erro-movimentacao");
+
+  if (estado.contas.length === 0) {
+    mostrarErro("erro-movimentacao", "Cadastre uma conta em Contas antes de lançar uma movimentação.");
+    return;
+  }
+
   const dados = new FormData(evento.target);
 
+  const corpo = {
+    valor: dados.get("valor"),
+    categoria_id: dados.get("categoria_id"),
+    conta_id: dados.get("conta_id"),
+    descricao: dados.get("descricao") || null,
+    data: dados.get("data"),
+  };
+
+  const destravar = travarBotaoEnvio(evento.target);
   try {
-    await Api.editarMovimentacao(dados.get("id"), {
-      valor: dados.get("valor"),
-      categoria_id: dados.get("categoria_id"),
-      descricao: dados.get("descricao") || null,
-      data: dados.get("data"),
-    });
-    fecharModalEdicao();
-    await Promise.all([atualizarSaldo(), carregarHistorico()]);
-    toast("Movimentação atualizada.");
+    await Api.criarMovimentacao(corpo);
+    fecharModalMovimentacao();
+    await Promise.all([carregarContas(), carregarLancamentosRecentes()]);
+    toast("Movimentação adicionada.");
   } catch (erro) {
-    mostrarErro("erro-edicao", erro.message);
+    mostrarErro("erro-movimentacao", erro.message);
+  } finally {
+    destravar();
   }
 });
 

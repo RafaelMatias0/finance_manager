@@ -3,214 +3,315 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+  // Escuro é o padrão do site. Só fica claro se o usuário escolheu
+  // explicitamente "claro" antes (ver js/tema.js). Roda antes da
+  // primeira pintura pra não piscar claro e depois escurecer.
+  (function () {
+    try {
+      if (localStorage.getItem("gf_tema") !== "claro") {
+        document.documentElement.setAttribute("data-tema", "escuro");
+      }
+    } catch (erro) {
+      document.documentElement.setAttribute("data-tema", "escuro");
+    }
+  })();
+</script>
 <title>Relatórios — Cofre</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/relatorios.css" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
-<body>
+<body data-pagina="relatorios">
 
-<header class="topo">
-  <div class="topo__marca">
-    <span class="topo__selo">C</span>
-    <span class="topo__nome">Cofre</span>
-  </div>
-  <nav class="topo__nav">
-    <a href="index.html" class="topo__link">← Dashboard</a>
-    <button id="btn-sair" class="btn btn--fantasma">Sair</button>
-  </nav>
-</header>
+<div id="app-shell" class="app-shell">
 
-<main class="tela-app">
-
-  <div class="abas-relatorio" role="tablist">
-    <button class="aba-relatorio is-ativa" data-painel="automaticos" role="tab" aria-selected="true">Automáticos</button>
-    <button class="aba-relatorio" data-painel="personalizado" role="tab" aria-selected="false">Personalizado</button>
-    <button class="aba-relatorio" data-painel="comparativo" role="tab" aria-selected="false">Comparativo</button>
-  </div>
-
-  <!-- ===================== AUTOMÁTICOS ===================== -->
-  <section id="painel-automaticos" class="painel painel-relatorio">
-    <div class="painel__cabecalho">
-      <h2 class="painel__titulo">Relatórios automáticos</h2>
-      <div class="acoes-gerar-agora">
-        <select id="select-tipo-gerar-agora">
-          <option value="automatico_semanal">Semanal</option>
-          <option value="automatico_mensal">Mensal</option>
-        </select>
-        <button id="btn-gerar-agora" class="btn btn--secundario btn--pequeno">Gerar agora</button>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar__topo">
+      <button type="button" class="sidebar__toggle" data-acao="toggle-sidebar" aria-label="Recolher/expandir menu">☰</button>
+      <div class="sidebar__marca">
+        <span class="sidebar__selo">C</span>
+        <span class="sidebar__nome">Cofre</span>
       </div>
     </div>
-    <p class="nota-explicativa">
-      Todo <strong>segunda-feira às 01:00</strong> um relatório da semana anterior é gerado
-      automaticamente, e todo <strong>dia 1 às 01:00</strong>, um relatório do mês anterior.
-      O botão "Gerar agora" existe só pra não precisar esperar o agendamento — útil pra
-      testar/demonstrar a funcionalidade na hora.
-    </p>
-    <div class="tabela-scroll">
-      <table class="tabela-historico">
-        <thead>
-          <tr><th>Tipo</th><th>Período</th><th>Gerado em</th><th></th></tr>
-        </thead>
-        <tbody id="corpo-relatorios-automaticos"></tbody>
-      </table>
-      <p id="automaticos-vazio" class="estado-vazio">Nenhum relatório gerado ainda. Use "Gerar agora" pra ver como fica.</p>
-    </div>
-  </section>
 
-  <!-- ===================== PERSONALIZADO ===================== -->
-  <section id="painel-personalizado" class="painel painel-relatorio oculto">
-    <h2 class="painel__titulo">Relatório personalizado</h2>
-    <form id="form-personalizado" class="formulario formulario-relatorio">
-      <p class="erro-formulario" id="erro-personalizado" role="alert"></p>
-      <div class="linha-campos">
-        <label class="campo">
-          <span>De</span>
-          <input type="date" id="p-data-inicio" required />
-        </label>
-        <label class="campo">
-          <span>Até</span>
-          <input type="date" id="p-data-fim" required />
-        </label>
-        <label class="campo">
-          <span>Tipo</span>
-          <select id="p-tipo">
-            <option value="">Todos</option>
-            <option value="receita">Receita</option>
-            <option value="despesa">Despesa</option>
-          </select>
-        </label>
-        <label class="campo">
-          <span>Categoria (participação)</span>
-          <select id="p-categoria">
-            <option value="">Nenhuma</option>
-          </select>
-        </label>
+    <nav class="sidebar__nav">
+      <a href="index.html" class="sidebar__link" data-pagina="inicio">
+        <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></span>
+        <span class="sidebar__label">Início</span>
+      </a>
+      <a href="controle.html" class="sidebar__link" data-pagina="controle">
+        <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="7" cy="18" r="2"/></svg></span>
+        <span class="sidebar__label">Controle</span>
+      </a>
+      <a href="relatorios.html" class="sidebar__link" data-pagina="relatorios">
+        <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="4" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="20" y1="20" x2="20" y2="14"/></svg></span>
+        <span class="sidebar__label">Relatórios</span>
+      </a>
+      <a href="contas.html" class="sidebar__link" data-pagina="contas">
+        <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16" cy="14" r="1"/></svg></span>
+        <span class="sidebar__label">Contas</span>
+      </a>
+      <a href="pendencias.html" class="sidebar__link" data-pagina="pendencias">
+        <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+        <span class="sidebar__label">Pendências</span>
+      </a>
+      <a href="planos.html" class="sidebar__link" data-pagina="planos">
+        <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span>
+        <span class="sidebar__label">Planos e Metas</span>
+      </a>
+    </nav>
+
+  </aside>
+
+  <div class="app-shell__conteudo">
+    <header class="topo">
+      <div>
+        <h1 class="topo__titulo">Relatórios</h1>
+        <p class="topo__subtitulo">Automáticos, personalizados ou comparando categorias.</p>
       </div>
-      <button type="submit" class="btn btn--principal">Gerar relatório</button>
-    </form>
-
-    <div id="banner-visualizacao" class="banner-visualizacao oculto">
-      <span id="banner-visualizacao-texto"></span>
-      <button id="btn-fechar-banner" class="link-acao">fechar</button>
-    </div>
-
-    <div id="resultado-personalizado" class="resultado-relatorio oculto">
-      <section class="resumo" aria-label="Resumo do período">
-        <div class="resumo__item">
-          <span class="resumo__rotulo">Receitas</span>
-          <span class="resumo__valor valor--receita" id="rp-receitas">R$ 0,00</span>
+      <div class="topo__acoes">
+        <button type="button" id="btn-alternar-tema" class="btn-icone-tema" aria-label="Alternar tema claro/escuro">
+          <span class="icone-tema icone-tema--lua"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+          <span class="icone-tema icone-tema--sol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></span>
+        </button>
+        <div class="menu-usuario" id="menu-usuario">
+          <button type="button" id="btn-menu-usuario" class="menu-usuario__botao" aria-haspopup="true" aria-expanded="false">
+            <span class="menu-usuario__avatar" id="menu-usuario-avatar">?</span>
+            <span class="menu-usuario__nome" id="menu-usuario-nome">Carregando…</span>
+            <svg class="menu-usuario__seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="menu-usuario__dropdown oculto" id="menu-usuario-dropdown" role="menu">
+            <button type="button" class="menu-usuario__item" id="btn-abrir-perfil" role="menuitem">
+              <span class="menu-usuario__item-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></span>
+              Perfil
+            </button>
+            <hr class="menu-usuario__divisor" />
+            <button type="button" class="menu-usuario__item menu-usuario__item--sair" id="btn-sair" role="menuitem">
+              <span class="menu-usuario__item-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></span>
+              Sair
+            </button>
+          </div>
         </div>
-        <div class="resumo__item">
-          <span class="resumo__rotulo">Despesas</span>
-          <span class="resumo__valor valor--despesa" id="rp-despesas">R$ 0,00</span>
+      </div>
+    </header>
+
+    <main class="tela-app">
+
+      <div class="abas abas--conteudo" role="tablist">
+        <button class="aba is-ativa" data-painel="automaticos" role="tab" aria-selected="true">Automáticos</button>
+        <button class="aba" data-painel="personalizado" role="tab" aria-selected="false">Personalizado</button>
+        <button class="aba" data-painel="comparativo" role="tab" aria-selected="false">Comparativo</button>
+      </div>
+
+      <!-- ===================== AUTOMÁTICOS ===================== -->
+      <section id="painel-automaticos" class="painel painel-relatorio">
+        <div class="painel__cabecalho">
+          <h2 class="painel__titulo">Relatórios automáticos</h2>
+          <div class="acoes-gerar-agora">
+            <select id="select-tipo-gerar-agora">
+              <option value="automatico_semanal">Semanal</option>
+              <option value="automatico_mensal">Mensal</option>
+            </select>
+            <button id="btn-gerar-agora" class="btn btn--secundario btn--pequeno">Gerar agora</button>
+          </div>
         </div>
-        <div class="resumo__item resumo__item--saldo">
-          <span class="resumo__rotulo">Saldo do período</span>
-          <span class="resumo__valor resumo__valor--saldo" id="rp-saldo">R$ 0,00</span>
+        <p class="nota-explicativa">
+          Todo <strong>segunda-feira às 01:00</strong> um relatório da semana anterior é gerado
+          automaticamente, e todo <strong>dia 1 às 01:00</strong>, um relatório do mês anterior.
+          O botão "Gerar agora" existe só pra não precisar esperar o agendamento — útil pra
+          testar/demonstrar a funcionalidade na hora.
+        </p>
+        <div class="tabela-scroll">
+          <table class="tabela-historico">
+            <thead>
+              <tr><th>Tipo</th><th>Período</th><th>Gerado em</th><th></th></tr>
+            </thead>
+            <tbody id="corpo-relatorios-automaticos"></tbody>
+          </table>
+          <p id="automaticos-vazio" class="estado-vazio">Nenhum relatório gerado ainda. Use "Gerar agora" pra ver como fica.</p>
         </div>
       </section>
 
-      <div class="grade-graficos">
-        <div class="cartao-grafico">
-          <h3 class="cartao-grafico__titulo">Movimentações por dia</h3>
-          <canvas id="grafico-diario-p"></canvas>
-        </div>
-        <div class="cartao-grafico oculto" id="cartao-grafico-categoria">
-          <h3 class="cartao-grafico__titulo" id="titulo-grafico-categoria">Participação da categoria</h3>
-          <canvas id="grafico-categoria-p"></canvas>
-        </div>
-      </div>
+      <!-- ===================== PERSONALIZADO ===================== -->
+      <section id="painel-personalizado" class="painel painel-relatorio oculto">
+        <h2 class="painel__titulo">Relatório personalizado</h2>
+        <form id="form-personalizado" class="formulario formulario-relatorio">
+          <p class="erro-formulario" id="erro-personalizado" role="alert"></p>
+          <div class="linha-campos">
+            <label class="campo">
+              <span>De</span>
+              <input type="date" id="p-data-inicio" required />
+            </label>
+            <label class="campo">
+              <span>Até</span>
+              <input type="date" id="p-data-fim" required />
+            </label>
+            <label class="campo">
+              <span>Tipo</span>
+              <select id="p-tipo">
+                <option value="">Todos</option>
+                <option value="receita">Receita</option>
+                <option value="despesa">Despesa</option>
+              </select>
+            </label>
+            <label class="campo">
+              <span>Categoria (participação)</span>
+              <select id="p-categoria">
+                <option value="">Nenhuma</option>
+              </select>
+            </label>
+          </div>
+          <button type="submit" class="btn btn--principal">Gerar relatório</button>
+        </form>
 
-      <h3 class="painel__titulo">Histórico do período</h3>
-      <div class="tabela-scroll">
-        <table class="tabela-historico">
-          <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th class="alinhar-direita">Valor</th></tr></thead>
-          <tbody id="corpo-historico-p"></tbody>
-        </table>
-        <p id="historico-p-vazio" class="estado-vazio oculto">Nenhuma movimentação nesse período/filtro.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== COMPARATIVO ===================== -->
-  <section id="painel-comparativo" class="painel painel-relatorio oculto">
-    <h2 class="painel__titulo">Comparar duas categorias</h2>
-    <form id="form-comparativo" class="formulario formulario-relatorio">
-      <p class="erro-formulario" id="erro-comparativo" role="alert"></p>
-      <div class="linha-campos">
-        <label class="campo">
-          <span>De</span>
-          <input type="date" id="c-data-inicio" required />
-        </label>
-        <label class="campo">
-          <span>Até</span>
-          <input type="date" id="c-data-fim" required />
-        </label>
-        <label class="campo">
-          <span>Categoria 1</span>
-          <select id="c-categoria-1" required></select>
-        </label>
-        <label class="campo">
-          <span>Categoria 2</span>
-          <select id="c-categoria-2" required></select>
-        </label>
-      </div>
-      <button type="submit" class="btn btn--principal">Comparar</button>
-    </form>
-
-    <div id="resultado-comparativo" class="resultado-relatorio oculto">
-      <section class="resumo resumo--comparativo" aria-label="Resumo da comparação">
-        <div class="resumo__item">
-          <span class="resumo__rotulo" id="rc-nome-1">Categoria 1</span>
-          <span class="resumo__valor" id="rc-total-1">R$ 0,00</span>
+        <div id="banner-visualizacao" class="banner-visualizacao oculto">
+          <span id="banner-visualizacao-texto"></span>
+          <button id="btn-fechar-banner" class="link-acao link-acao--dispensar">fechar</button>
         </div>
-        <div class="resumo__item">
-          <span class="resumo__rotulo" id="rc-nome-2">Categoria 2</span>
-          <span class="resumo__valor" id="rc-total-2">R$ 0,00</span>
-        </div>
-        <div class="resumo__item resumo__item--saldo">
-          <span class="resumo__rotulo" id="rc-rotulo-final">Resultado</span>
-          <span class="resumo__valor resumo__valor--saldo" id="rc-valor-final">R$ 0,00</span>
+
+        <div id="resultado-personalizado" class="resultado-relatorio oculto">
+          <section class="resumo" aria-label="Resumo do período">
+            <div class="resumo__item">
+              <span class="resumo__rotulo">Receitas</span>
+              <span class="resumo__valor valor--receita" id="rp-receitas">R$ 0,00</span>
+            </div>
+            <div class="resumo__item">
+              <span class="resumo__rotulo">Despesas</span>
+              <span class="resumo__valor valor--despesa" id="rp-despesas">R$ 0,00</span>
+            </div>
+            <div class="resumo__item resumo__item--saldo">
+              <span class="resumo__rotulo">Saldo do período</span>
+              <span class="resumo__valor resumo__valor--saldo" id="rp-saldo">R$ 0,00</span>
+            </div>
+          </section>
+
+          <div class="grade-graficos">
+            <div class="cartao-grafico">
+              <h3 class="cartao-grafico__titulo">Movimentações por dia</h3>
+              <canvas id="grafico-diario-p"></canvas>
+            </div>
+            <div class="cartao-grafico oculto" id="cartao-grafico-categoria">
+              <h3 class="cartao-grafico__titulo" id="titulo-grafico-categoria">Participação da categoria</h3>
+              <canvas id="grafico-categoria-p"></canvas>
+            </div>
+          </div>
+
+          <h3 class="painel__titulo">Histórico do período</h3>
+          <div class="tabela-scroll">
+            <table class="tabela-historico">
+              <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th class="alinhar-direita">Valor</th></tr></thead>
+              <tbody id="corpo-historico-p"></tbody>
+            </table>
+            <p id="historico-p-vazio" class="estado-vazio oculto">Nenhuma movimentação nesse período/filtro.</p>
+          </div>
         </div>
       </section>
 
-      <div class="grade-graficos">
-        <div class="cartao-grafico">
-          <h3 class="cartao-grafico__titulo">Comparação por dia</h3>
-          <canvas id="grafico-linha-c"></canvas>
-        </div>
-        <div class="cartao-grafico oculto" id="cartao-pizza-individual-c">
-          <h3 class="cartao-grafico__titulo">Participação individual (no total do tipo)</h3>
-          <canvas id="grafico-pizza-individual-c"></canvas>
-        </div>
-        <div class="cartao-grafico oculto" id="cartao-pizza-combinada-c">
-          <h3 class="cartao-grafico__titulo">Participação das duas somadas</h3>
-          <canvas id="grafico-pizza-combinada-c"></canvas>
-        </div>
-      </div>
+      <!-- ===================== COMPARATIVO ===================== -->
+      <section id="painel-comparativo" class="painel painel-relatorio oculto">
+        <h2 class="painel__titulo">Comparar duas categorias</h2>
+        <form id="form-comparativo" class="formulario formulario-relatorio">
+          <p class="erro-formulario" id="erro-comparativo" role="alert"></p>
+          <div class="linha-campos">
+            <label class="campo">
+              <span>De</span>
+              <input type="date" id="c-data-inicio" required />
+            </label>
+            <label class="campo">
+              <span>Até</span>
+              <input type="date" id="c-data-fim" required />
+            </label>
+            <label class="campo">
+              <span>Categoria 1</span>
+              <select id="c-categoria-1" required></select>
+            </label>
+            <label class="campo">
+              <span>Categoria 2</span>
+              <select id="c-categoria-2" required></select>
+            </label>
+          </div>
+          <button type="submit" class="btn btn--principal">Comparar</button>
+        </form>
 
-      <h3 class="painel__titulo">Histórico combinado</h3>
-      <div class="tabela-scroll">
-        <table class="tabela-historico">
-          <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th class="alinhar-direita">Valor</th></tr></thead>
-          <tbody id="corpo-historico-c"></tbody>
-        </table>
-        <p id="historico-c-vazio" class="estado-vazio oculto">Nenhuma movimentação nesse período.</p>
-      </div>
-    </div>
-  </section>
+        <div id="resultado-comparativo" class="resultado-relatorio oculto">
+          <section class="resumo resumo--comparativo" aria-label="Resumo da comparação">
+            <div class="resumo__item">
+              <span class="resumo__rotulo" id="rc-nome-1">Categoria 1</span>
+              <span class="resumo__valor" id="rc-total-1">R$ 0,00</span>
+            </div>
+            <div class="resumo__item">
+              <span class="resumo__rotulo" id="rc-nome-2">Categoria 2</span>
+              <span class="resumo__valor" id="rc-total-2">R$ 0,00</span>
+            </div>
+            <div class="resumo__item resumo__item--saldo">
+              <span class="resumo__rotulo" id="rc-rotulo-final">Resultado</span>
+              <span class="resumo__valor resumo__valor--saldo" id="rc-valor-final">R$ 0,00</span>
+            </div>
+          </section>
 
-</main>
+          <div class="grade-graficos">
+            <div class="cartao-grafico">
+              <h3 class="cartao-grafico__titulo">Comparação por dia</h3>
+              <canvas id="grafico-linha-c"></canvas>
+            </div>
+            <div class="cartao-grafico oculto" id="cartao-pizza-individual-c">
+              <h3 class="cartao-grafico__titulo">Participação individual (no total do tipo)</h3>
+              <canvas id="grafico-pizza-individual-c"></canvas>
+            </div>
+            <div class="cartao-grafico oculto" id="cartao-pizza-combinada-c">
+              <h3 class="cartao-grafico__titulo">Participação das duas somadas</h3>
+              <canvas id="grafico-pizza-combinada-c"></canvas>
+            </div>
+          </div>
+
+          <h3 class="painel__titulo">Histórico combinado</h3>
+          <div class="tabela-scroll">
+            <table class="tabela-historico">
+              <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th class="alinhar-direita">Valor</th></tr></thead>
+              <tbody id="corpo-historico-c"></tbody>
+            </table>
+            <p id="historico-c-vazio" class="estado-vazio oculto">Nenhuma movimentação nesse período.</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div id="modal-perfil" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-perfil">
+  <div class="modal__conteudo">
+    <h2 class="painel__titulo" id="titulo-modal-perfil">Perfil</h2>
+    <form id="form-perfil" class="formulario">
+      <p class="erro-formulario" id="erro-perfil" role="alert"></p>
+      <label class="campo">
+        <span>Nome</span>
+        <input type="text" name="nome" required minlength="1" maxlength="120" />
+      </label>
+      <div class="campo">
+        <span>Email</span>
+        <div class="campo-somente-leitura" id="texto-email-perfil"></div>
+      </div>
+      <div class="modal__acoes">
+        <button type="button" id="btn-cancelar-perfil" class="btn btn--fantasma">Cancelar</button>
+        <button type="submit" class="btn btn--principal">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <div id="regiao-toast" class="regiao-toast" aria-live="polite"></div>
 
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
+<script src="js/tema.js"></script>
 <script src="js/api.js"></script>
 <script src="js/relatorios.js"></script>
+<script src="js/sidebar.js"></script>
+<script src="js/usuario.js"></script>
 </body>
 </html>

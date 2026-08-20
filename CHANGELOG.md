@@ -1,5 +1,172 @@
 # Changelog
 
+## v2.4.0 — Fase 4: Planos e Metas
+
+- **Planos** (`Plano`): dois tipos, cada um com duas submodalidades.
+  - **Guardar dinheiro** — nunca gera Movimentação; progresso vem da
+    atividade financeira real. *Simples*: acumular um valor até uma
+    data, progresso = crescimento do saldo da conta desde o início.
+    *Redução de categoria*: cortar gasto numa categoria, avaliado mês a
+    mês contra um alvo (percentual da receita do mês, ou valor fixo
+    abaixo da média dos 3 meses anteriores ao início — baseline fixo).
+  - **Quitar dívida** — todo pagamento gera despesa de verdade. *Prazo*:
+    valor total + data-alvo, pagamentos avulsos (`POST
+    /planos/{id}/aportar`). *Parcelas*: valor da parcela × número de
+    parcelas — reaproveita a Pendencia recorrente da Fase 3 por baixo
+    (campo novo `numero_parcelas` em `Pendencia`, que trava a geração de
+    ciclos depois de N meses); pagar uma parcela usa a rota de Pendência
+    de sempre (`POST /pendencias/{id}/pagar`), que agora também grava
+    `plano_id` na Movimentação quando a pendência pertence a um plano.
+- **Rotas novas**: `GET/POST/PATCH/DELETE /planos` e `POST
+  /planos/{id}/aportar`. `DELETE` bloqueado (`409`) com pagamentos
+  vinculados; no modo parcelas sem nenhum pagamento, também remove a
+  Pendencia criada por trás (não fica órfã na página de Pendências).
+- **`app/contas.py`**: `calcular_saldo_conta` ganhou parâmetro opcional
+  `ate_data` (saldo "naquele momento", não só o atual) — usado pelo
+  progresso de guardar dinheiro/simples.
+- **Correção**: a primeira versão do cálculo de progresso de "quitar
+  dívida por parcelas" inferia parcelas pagas por subtração
+  (`numero_parcelas − ciclos pendentes`), o que dava errado logo no
+  início do plano (nem todos os N ciclos ainda tinham sido gerados).
+  Corrigido pra contar pagamentos de verdade.
+- **Front-end**: página nova `planos.html` com formulário em cascata
+  (tipo → submodo → campos daquele submodo) e progresso exibido no
+  formato certo pra cada modalidade (barra, checklist mensal, ou lista de
+  parcelas reaproveitando o componente de Pendências); item "Planos e
+  Metas" da sidebar deixou de ser "em breve" em todas as páginas — com
+  isso, não sobra mais nenhum item desabilitado na sidebar.
+
+## v2.3.0 — Fase 3: Pendências
+
+- **Pendências** (`Pendencia`): contas recorrentes (aluguel, assinaturas
+  — um vencimento por mês, dia fixo) ou avulsas (um vencimento único).
+  Sem campo `tipo` redundante — vem de `pendencia.categoria.tipo`, mesmo
+  princípio de `Movimentacao`.
+- **Status pago/pendente nunca é guardado** — é sempre calculado a partir
+  de existir ou não uma `Movimentacao` vinculada a um vencimento
+  específico. Se o usuário ficar meses sem marcar uma recorrente como
+  paga, cada mês aparece como um ciclo atrasado separado (a dívida
+  acumulada fica visível).
+- **"Marcar como paga" cria uma Movimentação de verdade**
+  (`POST /pendencias/{id}/pagar`) — não é um toggle desacoplado do
+  histórico real. `Movimentacao` ganhou dois campos novos:
+  `pendencia_id` e `pendencia_referencia` (o vencimento quitado,
+  separado da data real do pagamento — permite pagar atrasado sem perder
+  essa informação). Índice único parcial trava, no banco, contra pagar o
+  mesmo vencimento duas vezes.
+- **Rotas novas**: `GET/POST/PATCH/DELETE /pendencias` e `POST
+  /pendencias/{id}/pagar`. `DELETE` bloqueado (`409`) se a pendência já
+  tiver pagamentos — use `PATCH ativa=false` pra "pausar" em vez de
+  apagar.
+- **Front-end**: página nova `pendencias.html` (criar, editar,
+  pausar/reativar recorrentes, apagar, marcar vencimento como pago); o
+  item "Pendências" da sidebar deixou de ser "em breve" em todas as
+  páginas; o card de Pendências no grid do Início deixou de ser
+  placeholder — mostra as pendências mais urgentes (atrasadas primeiro),
+  só leitura, com link pra página dedicada.
+- **Correção**: as relações protegidas por `ON DELETE RESTRICT`
+  (`Categoria.movimentacoes`, `Conta.movimentacoes`, `Pendencia.
+  pagamentos`) não tinham `passive_deletes=True` — o SQLAlchemy tentava
+  "desvincular" as linhas filhas (setar a FK pra `NULL`) antes do delete,
+  em vez de deixar o `RESTRICT` do banco barrar a operação. Em
+  Categoria/Conta isso não tinha efeito visível (a coluna é `NOT NULL`,
+  então a tentativa falhava por outro motivo, e o `409` acontecia mesmo
+  assim, por acidente); em Pendencia (coluna opcional) o bug era real —
+  apagar uma pendência com pagamentos já feitos funcionava
+  silenciosamente. Corrigido nas três.
+- **Correção**: o schema `MovimentacaoOut` não expunha os campos novos
+  (`pendencia_id`/`pendencia_referencia`) na resposta da API — corrigido.
+- Sem subcategorias nesta fase (decisão de escopo já registrada desde a
+  Fase 2).
+
+## v2.2.0 — Fase 2: Divisão Início / Controle
+
+- **Início enxuto**: o painel de Histórico saiu daqui — o Início agora é só
+  resumo/atalhos do dia a dia: card de saldo por conta (só leitura) e o
+  formulário de nova movimentação, lado a lado com os dois placeholders "em
+  breve" (Pendências, envio de arquivo).
+- **Página nova `controle.html`**: recebeu o Histórico completo (filtros,
+  paginação, edição via modal — mesma funcionalidade de antes, só mudou de
+  página) e ganhou duas peças de análise por categoria: um gráfico de pizza
+  dos gastos do mês atual, e uma tabela-resumo por categoria (total, % do
+  total do tipo, mínimo/média/máximo por movimentação, e o total de cada um
+  dos últimos 3 meses). Novo item "Controle" na sidebar, entre Início e
+  Relatórios.
+- **Rota nova `GET /relatorios/por-categoria`**: agregação em SQL
+  (`GROUP BY`, não em Python) por escalabilidade, já que pode cobrir "todo
+  o histórico" do usuário — mesmo padrão de `calcular_saldos_contas`.
+  Parâmetros opcionais (`data_inicio`, `data_fim`, `tipo`,
+  `meses_recentes`) cobrem tanto o gráfico (mês atual, despesas) quanto a
+  tabela (histórico completo, últimos 3 meses).
+- **Subcategorias**: consideradas e adiadas de propósito — exigiriam
+  mudança de schema (hierarquia em `Categoria`), então ficaram fora desta
+  fase; a tabela de Controle agrupa só por categoria.
+- **Paleta do gráfico de pizza**: validada com a skill de dataviz (8
+  matizes categóricas em ordem fixa, checadas contra o fundo do card —
+  `--papel-cartao` — pra separação sob daltonismo e contraste); acima de 8
+  categorias com gasto no mês, as menores agrupam em "Outras" em vez de
+  gerar uma cor nova.
+- **Correção**: `test_jwt.py` e `test_relatorios.py` criavam movimentações
+  sem `conta_id` — campo que ficou obrigatório desde a v2.1.0 (Fase 1) e
+  nunca tinha sido atualizado nos testes, então ambos os arquivos estavam
+  quebrados (todo POST /movimentacoes vinha 422). Corrigido: os dois
+  criam uma conta de teste antes de lançar qualquer movimentação.
+
+## v2.1.1 — Ajustes finos da Fase 1
+
+- **Nova página `contas.html`**: criar/editar/apagar conta e transferir
+  entre contas saíram do Início e ganharam página própria, com um link
+  "Contas" normal na sidebar (antes era um botão com comportamento
+  especial — abria modal ou rolava a tela dependendo da página). A nova
+  página também mostra, pela primeira vez no front-end, o **histórico de
+  transferências** já feitas (a rota `GET /transferencias` já existia no
+  backend desde a v2.1.0, mas nunca tinha sido consumida pela tela).
+- **Início reorganizado**: o resumo de Receitas/Despesas/Saldo deu lugar a
+  um grid de 4 blocos — saldo por conta (só leitura, com link "Gerenciar
+  contas" para a nova página), o histórico completo de movimentações
+  (com filtros/paginação, que só mudou de lugar), e dois placeholders
+  "em breve" (Pendências — já prevista na Fase 3 do roadmap — e uma área
+  de envio de arquivo, ainda sem escopo definido). Os totais de
+  Receitas/Despesas/Saldo não aparecem mais no Início por enquanto; a
+  rota `GET /saldo` continua existindo no backend, só não é mais chamada
+  pelo front-end.
+- **Hambúrguer duplicado removido**: existiam dois botões de
+  recolher/expandir a sidebar (um na própria sidebar, outro no header do
+  conteúdo). Ficou só o da sidebar.
+
+## v2.1.0 — Fase 1: Contas bancárias + Sidebar
+
+- **Contas bancárias** (`Conta`): registro "de visão" — nome do banco, apelido
+  opcional e saldo inicial configurável. Sem qualquer integração real com
+  bancos. Rotas `GET/POST/PATCH/DELETE /contas` (delete bloqueado com `409`
+  se a conta tiver movimentações/transferências vinculadas).
+- **`Movimentacao.conta_id` passou a ser obrigatório** — toda movimentação
+  agora pertence a uma conta. `ON DELETE RESTRICT`, mesmo padrão já usado
+  em `categoria_id`.
+- **Transferências entre contas** (`Transferencia`): modelo novo, separado
+  de `Movimentacao` de propósito — não é receita nem despesa, então não
+  entra nos relatórios (que derivam o tipo a partir de `Categoria.tipo`).
+  Só afeta o saldo calculado das duas contas envolvidas. Rotas
+  `GET/POST /transferencias`.
+- **Saldo por conta**: `GET /contas` já retorna `saldo_atual` calculado
+  (saldo inicial + receitas − despesas + transferências recebidas −
+  enviadas) por conta. `GET /saldo` (total do usuário) passou a somar
+  também os saldos iniciais de todas as contas.
+- **Front-end**: nova sidebar recolhível, compartilhada entre as páginas
+  logadas (`js/sidebar.js`), com os itens Início, Relatórios, Contas,
+  e Pendências/Planos e Metas marcados como "em breve" (ainda sem página —
+  fases seguintes). Formulário de nova movimentação e modal de edição
+  passaram a exigir conta; histórico ganhou coluna e filtro de conta;
+  novo painel "Contas" no dashboard (criar/editar/apagar conta, transferir
+  entre contas).
+- **Correção**: removidas duas duplicações de rota que existiam no
+  `main.py` (`PATCH /categorias/{id}` e `PATCH /movimentacoes/{id}`
+  estavam definidas duas vezes cada — o FastAPI só registrava a última;
+  agora só existe uma definição de cada).
+- **Breaking change de schema**: como combinado, o banco precisa ser
+  resetado (`alembic downgrade base` + `alembic upgrade head`) — não há
+  migração de dados antigos sem conta, já que `conta_id` é `NOT NULL`.
+
 ## v2.0.0
 
 - Sistema de relatórios:

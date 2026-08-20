@@ -9,6 +9,13 @@ function formatarDataBR(isoDate) {
   return `${dia}/${mes}/${ano}`;
 }
 
+function formatarMesAno(mesIso) {
+  // mesIso no formato "AAAA-MM" (como vem de GET /relatorios/por-categoria)
+  const [ano, mes] = mesIso.split("-").map(Number);
+  const data = new Date(ano, mes - 1, 1);
+  return data.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
+}
+
 function hojeISO() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -38,4 +45,17 @@ function limparErro(elementoId) {
   const el = document.getElementById(elementoId);
   el.textContent = "";
   el.classList.remove("is-visivel");
+}
+
+// Trava o botão de submit de um form enquanto uma requisição está em voo,
+// pra não deixar clique duplo criar registro repetido (movimentação,
+// conta, pendência, plano...). Uso: no topo do handler de submit, logo
+// depois do preventDefault(), chame `const destravar = travarBotaoEnvio(evento.target);`
+// e rode o try/catch/finally normal, chamando `destravar()` no finally.
+function travarBotaoEnvio(form) {
+  const botao = form.querySelector('button[type="submit"]');
+  if (botao) botao.disabled = true;
+  return () => {
+    if (botao) botao.disabled = false;
+  };
 }

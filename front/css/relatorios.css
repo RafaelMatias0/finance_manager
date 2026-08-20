@@ -1,30 +1,13 @@
 /* Estilos específicos de relatorios.html — complementa style.css */
 
 .painel-relatorio {
-  max-width: 1100px;
+  max-width: 1180px;
   margin: 0 auto 1.5rem;
 }
 
-.abas-relatorio {
-  display: flex;
-  gap: 0.4rem;
-  max-width: 1100px;
-  margin: 0 auto 1.25rem;
-  border-bottom: 1px solid var(--linha-forte);
-}
-
-.aba-relatorio {
-  background: none;
-  border: none;
-  padding: 0.7rem 1.1rem;
-  font-family: var(--fonte-display);
-  font-size: 1rem;
-  color: var(--tinta-suave);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-}
-.aba-relatorio.is-ativa { color: var(--tinta); border-bottom-color: var(--dourado); }
+/* .abas/.aba/.abas--conteudo (componente compartilhado com as abas de
+   login/cadastro) moraram aqui antes, duplicadas sob "-relatorio" — ver
+   style.css. */
 
 .acoes-gerar-agora {
   display: flex;
@@ -32,19 +15,20 @@
   align-items: center;
 }
 .acoes-gerar-agora select {
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio);
-  background: var(--papel-cartao);
+  padding: 0.55rem 0.7rem;
+  border: 1.5px solid var(--linha-forte);
+  border-radius: var(--raio-sm);
+  background: var(--superficie-2);
 }
 
 .nota-explicativa {
   font-size: 0.85rem;
-  color: var(--tinta-suave);
-  background: var(--dourado-fundo);
-  padding: 0.75rem 1rem;
+  color: var(--marca-escura);
+  background: var(--marca-suave);
+  padding: 0.85rem 1.1rem;
   border-radius: var(--raio);
-  margin: 0 0 1.1rem;
+  margin: 0 0 1.2rem;
+  line-height: 1.5;
 }
 
 .formulario-relatorio .linha-campos {
@@ -60,51 +44,28 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--dourado-fundo);
+  gap: 1rem;
+  background: var(--aviso-fundo);
   color: var(--tinta);
-  padding: 0.7rem 1rem;
+  padding: 0.8rem 1.1rem;
   border-radius: var(--raio);
   margin: 1rem 0;
   font-size: 0.88rem;
+  animation: entrar-subindo var(--transicao) both;
 }
 
-.resultado-relatorio { margin-top: 1.5rem; }
+.resultado-relatorio { margin-top: 1.5rem; animation: entrar-subindo var(--transicao-suave) both; }
 
 .resumo--comparativo .resumo__valor {
   font-family: var(--fonte-mono);
   font-size: 1.3rem;
-  font-weight: 600;
+  font-weight: 700;
 }
-
-.grade-graficos {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.25rem;
-  margin: 1.5rem 0;
-}
-
-.cartao-grafico {
-  background: var(--papel-cartao);
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio);
-  padding: 1rem;
-  min-height: 260px;
-}
-
-.cartao-grafico__titulo {
-  font-family: var(--fonte-display);
-  font-size: 0.95rem;
-  font-weight: 600;
-  margin: 0 0 0.75rem;
-  text-align: center;
-}
-
-.cartao-grafico canvas { max-height: 220px; }
 
 .linha-clicavel { cursor: pointer; }
-.linha-clicavel:hover { background: rgba(22, 36, 29, 0.05); }
+.linha-clicavel:hover td { background: var(--marca-suave) !important; }
 
 @media (max-width: 600px) {
   .formulario-relatorio .campo { min-width: 0; flex-basis: 100%; }
-  .painel-relatorio, .abas-relatorio { padding-left: 0.25rem; padding-right: 0.25rem; }
+  .painel-relatorio, .abas--conteudo { margin-left: 0.25rem; margin-right: 0.25rem; }
 }
