@@ -137,6 +137,7 @@ document.getElementById("form-conta").addEventListener("submit", async (evento) 
     saldo_inicial: dados.get("saldo_inicial") || "0",
   };
 
+  const destravar = travarBotaoEnvio(evento.target);
   try {
     if (id) {
       await Api.editarConta(id, corpo);
@@ -149,12 +150,14 @@ document.getElementById("form-conta").addEventListener("submit", async (evento) 
     await carregarContas();
   } catch (erro) {
     mostrarErro("erro-conta", erro.message);
+  } finally {
+    destravar();
   }
 });
 
 async function apagarConta(conta) {
   const rotulo = conta.apelido ? `${conta.nome_banco} (${conta.apelido})` : conta.nome_banco;
-  const confirmado = confirm(`Apagar a conta "${rotulo}"? Isso só é possível se ela não tiver movimentações ou transferências.`);
+  const confirmado = await confirmarAcao(`Apagar a conta "${rotulo}"? Isso só é possível se ela não tiver movimentações ou transferências.`);
   if (!confirmado) return;
   try {
     await Api.apagarConta(conta.id);
@@ -201,6 +204,7 @@ document.getElementById("form-transferencia").addEventListener("submit", async (
     return;
   }
 
+  const destravar = travarBotaoEnvio(evento.target);
   try {
     await Api.criarTransferencia({
       conta_origem_id: origem,
@@ -215,6 +219,8 @@ document.getElementById("form-transferencia").addEventListener("submit", async (
     toast("Transferência realizada.");
   } catch (erro) {
     mostrarErro("erro-transferencia", erro.message);
+  } finally {
+    destravar();
   }
 });
 

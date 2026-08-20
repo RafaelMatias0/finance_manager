@@ -7,7 +7,9 @@
  * Responsabilidades:
  * - Recolher/expandir a sidebar (estado persistido em localStorage).
  * - Marcar o item de navegação ativo (via data-pagina no <body>).
- * - Botão "Sair" da sidebar.
+ *
+ * O botão "Sair" morava aqui, mas se mudou pro menu do usuário no topo
+ * (canto superior direito) — ver js/usuario.js.
  */
 const SIDEBAR_ESTADO_KEY = "gf_sidebar_recolhida";
 
@@ -29,14 +31,6 @@ function inicializarSidebar() {
   sidebar.querySelectorAll(".sidebar__link[data-pagina]").forEach((link) => {
     link.classList.toggle("is-ativo", link.dataset.pagina === paginaAtual);
   });
-
-  const btnSairSidebar = document.getElementById("btn-sair-sidebar");
-  if (btnSairSidebar) {
-    btnSairSidebar.addEventListener("click", () => {
-      Auth.limparToken();
-      window.location.href = "index.html";
-    });
-  }
 }
 
 document.addEventListener("DOMContentLoaded", inicializarSidebar);

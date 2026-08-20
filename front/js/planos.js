@@ -155,7 +155,10 @@ function renderizarProgressoPlano(container, plano) {
   // simples / prazo / parcelas: barra de progresso comum
   const barra = document.createElement("div");
   barra.className = "barra-progresso";
-  barra.innerHTML = `<div class="barra-progresso__preenchimento" style="width:${Math.min(100, p.percentual)}%"></div>`;
+  // scaleX em vez de width: a barra em si já ocupa 100% (transform-origin:
+  // left no CSS), só o preenchimento visual encolhe — não dispara reflow.
+  const fracaoPreenchida = Math.min(100, p.percentual) / 100;
+  barra.innerHTML = `<div class="barra-progresso__preenchimento" style="transform:scaleX(${fracaoPreenchida})"></div>`;
   container.appendChild(barra);
 
   const texto = document.createElement("p");
@@ -166,7 +169,7 @@ function renderizarProgressoPlano(container, plano) {
   if (p.modo === "prazo") {
     const botao = document.createElement("button");
     botao.type = "button";
-    botao.className = "link-acao";
+    botao.className = "link-acao link-acao--financeira";
     botao.textContent = "Registrar pagamento";
     botao.addEventListener("click", () => abrirModalPagamento(plano));
     container.appendChild(botao);
@@ -185,7 +188,7 @@ function renderizarProgressoPlano(container, plano) {
         const rotulo = ciclo.status === "atrasada" ? "Venceu" : "Vence";
         linha.innerHTML = `
           <span class="${etiquetaClasse}">${rotulo} ${formatarDataBR(ciclo.data_vencimento)}</span>
-          <button type="button" class="link-acao btn-pagar-parcela">Marcar como paga</button>
+          <button type="button" class="link-acao link-acao--financeira btn-pagar-parcela">Marcar como paga</button>
         `;
         linha.querySelector(".btn-pagar-parcela").addEventListener("click", () => abrirModalPagamento(plano, ciclo));
         listaCiclos.appendChild(linha);
@@ -255,7 +258,140 @@ function alternarCamposPlano() {
 
 document.querySelectorAll(
   '#form-plano input[name="tipo"], #form-plano input[name="guardar_modo"], #form-plano input[name="divida_modo"], #form-plano input[name="criterio_reducao"]'
-).forEach((el) => el.addEventListener("change", alternarCamposPlano));
+).forEach((el) =>
+  el.addEventListener("change", () => {
+    alternarCamposPlano();
+    // Trocar tipo/modo pode mudar se o passo 3 tem algum campo visível
+    // (ex.: sair de "parcelas" pra "prazo") — reflete isso no indicador.
+    atualizarIndicadorPassosPlano();
+  })
+);
+
+// ---------- Wizard: passo 1 (básico) → passo 2 (como funciona) → passo 3
+// (valores e prazos). Os campos em si e a lógica de mostrar/esconder
+// continuam 100% em alternarCamposPlano() (inalterada) — o wizard só
+// decide qual .formulario-passo fica visível e quando dá pra avançar.
+// Campo escondido (.oculto = display:none) já não entra na validação
+// HTML5 (constraint validation ignora elemento sem caixa), então
+// reportValidity() no form inteiro valida só o passo atual de graça. ----------
+
+let passoAtualPlano = 1;
+let maxPassoAlcancadoPlano = 1;
+
+function obterPassosComConteudoPlano() {
+  const passos = [1, 2];
+  const passo3 = document.getElementById("formulario-passo-3");
+  const temConteudo = passo3.querySelector(".campo:not(.oculto), .campo-grupo-tipo:not(.oculto)");
+  if (temConteudo) passos.push(3);
+  return passos;
+}
+
+function focarPrimeiroCampoPasso(numero) {
+  const passo = document.getElementById(`formulario-passo-${numero}`);
+  const candidatos = passo.querySelectorAll("input:not(:disabled):not([type=hidden]), select:not(:disabled)");
+  // querySelectorAll não sabe que um campo está dentro de um .campo/.campo-
+  // grupo-tipo com .oculto (display:none) — offsetParent null é o jeito
+  // confiável de achar só o que está realmente visível nesse passo.
+  const campo = Array.from(candidatos).find((el) => el.offsetParent !== null);
+  if (campo) campo.focus();
+}
+
+function atualizarIndicadorPassosPlano() {
+  const passosComConteudo = obterPassosComConteudoPlano();
+  document.querySelectorAll(".passos-plano__item").forEach((item) => {
+    const numero = Number(item.dataset.passo);
+    item.classList.toggle("oculto", !passosComConteudo.includes(numero));
+    item.classList.toggle("is-atual", numero === passoAtualPlano);
+    item.classList.toggle("is-concluido", numero < passoAtualPlano);
+    item.disabled = numero > maxPassoAlcancadoPlano;
+  });
+  document.querySelectorAll(".passos-plano__linha").forEach((linha) => {
+    const numero = Number(linha.dataset.linha);
+    linha.classList.toggle("oculto", !passosComConteudo.includes(numero) || !passosComConteudo.includes(numero + 1));
+    linha.classList.toggle("is-concluida", numero < passoAtualPlano);
+  });
+}
+
+function atualizarBotoesNavegacaoPlano() {
+  const passos = obterPassosComConteudoPlano();
+  const ehPrimeiro = passoAtualPlano === passos[0];
+  const ehUltimo = passoAtualPlano === passos[passos.length - 1];
+  document.getElementById("btn-passo-anterior-plano").classList.toggle("oculto", ehPrimeiro);
+  const btnAvancar = document.getElementById("btn-avancar-plano");
+  btnAvancar.type = ehUltimo ? "submit" : "button";
+  btnAvancar.textContent = ehUltimo ? "Salvar" : "Próximo";
+}
+
+function irParaPassoPlano(numero) {
+  document.querySelectorAll(".formulario-passo").forEach((secao) => {
+    secao.classList.toggle("oculto", Number(secao.dataset.passo) !== numero);
+  });
+  passoAtualPlano = numero;
+  const conteudoModal = document.querySelector("#modal-form-plano .modal__conteudo");
+  if (conteudoModal) conteudoModal.scrollTop = 0;
+  atualizarIndicadorPassosPlano();
+  atualizarBotoesNavegacaoPlano();
+  focarPrimeiroCampoPasso(numero);
+}
+
+function irProximoPassoPlano() {
+  // Importante: reportValidity() NO FORM INTEIRO (em vez de só no passo
+  // atual) trava aqui — alternarCamposPlano() marca campos de passos
+  // futuros como required assim que o tipo/modo é escolhido, mesmo que
+  // esses campos ainda estejam dentro de um .formulario-passo escondido.
+  // Um campo required+vazio+escondido é inválido, mas o navegador não
+  // consegue mostrar a bolha de erro nele (não está renderizado) — então
+  // reportValidity() do form inteiro falha *silenciosamente* e parece que
+  // o botão não faz nada. Por isso validamos campo a campo, só os que
+  // estão de fato visíveis no passo atual (aí a bolha nativa aparece
+  // certinho, ancorada no campo real).
+  const passoAtual = document.getElementById(`formulario-passo-${passoAtualPlano}`);
+  const camposVisiveis = Array.from(passoAtual.querySelectorAll("input, select")).filter(
+    (el) => el.offsetParent !== null
+  );
+  for (const campo of camposVisiveis) {
+    if (!campo.reportValidity()) return;
+  }
+  const passos = obterPassosComConteudoPlano();
+  const proximo = passos[passos.indexOf(passoAtualPlano) + 1];
+  if (proximo === undefined) return;
+  maxPassoAlcancadoPlano = Math.max(maxPassoAlcancadoPlano, proximo);
+  irParaPassoPlano(proximo);
+}
+
+function irPassoAnteriorPlano() {
+  const passos = obterPassosComConteudoPlano();
+  const anterior = passos[passos.indexOf(passoAtualPlano) - 1];
+  if (anterior === undefined) return;
+  irParaPassoPlano(anterior);
+}
+
+document.getElementById("btn-passo-anterior-plano").addEventListener("click", irPassoAnteriorPlano);
+
+document.getElementById("btn-avancar-plano").addEventListener("click", (evento) => {
+  // Nos passos 1-2 o botão é type="button" (avança); no último passo vira
+  // type="submit" (atualizarBotoesNavegacaoPlano cuida disso) e o clique
+  // já dispara o submit do form normalmente — não precisamos fazer nada aqui.
+  if (evento.currentTarget.type === "button") {
+    evento.preventDefault();
+    irProximoPassoPlano();
+  }
+});
+
+document.getElementById("passos-plano-indicador").addEventListener("click", (evento) => {
+  const item = evento.target.closest(".passos-plano__item");
+  if (!item || item.disabled) return;
+  irParaPassoPlano(Number(item.dataset.passo));
+});
+
+// Enter em qualquer campo do wizard avança/salva, em vez de tentar
+// submeter o form direto (que só faz sentido no último passo).
+document.getElementById("form-plano").addEventListener("keydown", (evento) => {
+  if (evento.key === "Enter" && evento.target.tagName !== "BUTTON" && evento.target.tagName !== "TEXTAREA") {
+    evento.preventDefault();
+    document.getElementById("btn-avancar-plano").click();
+  }
+});
 
 let planoEmEdicao = null;
 
@@ -305,12 +441,20 @@ function abrirFormPlano(plano = null) {
   }
 
   alternarCamposPlano();
+  // Editando, os dados já são válidos (vieram do backend) — libera pular
+  // direto pro passo 3 sem precisar clicar "Próximo" duas vezes. Criando,
+  // só o passo 1 começa liberado. De qualquer forma sempre abre no passo
+  // 1 primeiro, pra dar contexto antes de deixar pular.
+  maxPassoAlcancadoPlano = plano ? 3 : 1;
   document.getElementById("modal-form-plano").classList.remove("oculto");
+  irParaPassoPlano(1);
 }
 
 function fecharFormPlano() {
   document.getElementById("modal-form-plano").classList.add("oculto");
   planoEmEdicao = null;
+  passoAtualPlano = 1;
+  maxPassoAlcancadoPlano = 1;
 }
 
 document.getElementById("btn-novo-plano").addEventListener("click", () => abrirFormPlano());
@@ -366,6 +510,7 @@ document.getElementById("form-plano").addEventListener("submit", async (evento) 
     }
   }
 
+  const destravar = travarBotaoEnvio(evento.target);
   try {
     if (id) {
       await Api.editarPlano(id, corpo);
@@ -378,6 +523,8 @@ document.getElementById("form-plano").addEventListener("submit", async (evento) 
     await carregarPlanos();
   } catch (erro) {
     mostrarErro("erro-plano", erro.message);
+  } finally {
+    destravar();
   }
 });
 
@@ -392,7 +539,7 @@ async function pausarPlano(plano) {
 }
 
 async function apagarPlano(plano) {
-  const confirmado = confirm(`Apagar o plano "${plano.nome}"? Isso só é possível se ele não tiver pagamentos vinculados.`);
+  const confirmado = await confirmarAcao(`Apagar o plano "${plano.nome}"? Isso só é possível se ele não tiver pagamentos vinculados.`);
   if (!confirmado) return;
   try {
     await Api.apagarPlano(plano.id);
@@ -413,7 +560,11 @@ function abrirModalPagamento(plano, ciclo = null) {
   const form = document.getElementById("form-pagamento-plano");
   form.reset();
 
-  document.getElementById("titulo-modal-pagamento-plano").textContent = `Registrar pagamento — ${plano.nome}`;
+  // Mesma copy do botão que abriu o modal — "Marcar como paga" numa
+  // parcela não deveria abrir um modal intitulado "Registrar pagamento"
+  // (era o caso antes: os dois fluxos usavam o mesmo título fixo).
+  const tituloPagamento = ciclo ? `Marcar como paga — ${plano.nome}` : `Registrar pagamento — ${plano.nome}`;
+  document.getElementById("titulo-modal-pagamento-plano").textContent = tituloPagamento;
   if (ciclo && plano.progresso.parcelas_total) {
     form.elements["valor"].value = (plano.progresso.valor_alvo / plano.progresso.parcelas_total).toFixed(2);
   }
@@ -438,6 +589,7 @@ document.getElementById("form-pagamento-plano").addEventListener("submit", async
   const dados = new FormData(evento.target);
   const { plano, ciclo } = pagamentoEmAndamento;
 
+  const destravar = travarBotaoEnvio(evento.target);
   try {
     if (ciclo) {
       // Parcela: a mesma rota de pagar pendência, com a conta fixa do
@@ -462,6 +614,8 @@ document.getElementById("form-pagamento-plano").addEventListener("submit", async
     toast("Pagamento registrado.");
   } catch (erro) {
     mostrarErro("erro-pagamento-plano", erro.message);
+  } finally {
+    destravar();
   }
 });
 

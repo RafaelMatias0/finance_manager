@@ -24,9 +24,23 @@ modelagem do banco de dados. O front-end (HTML/CSS/JS puro) será feito por
   assinaturas: um vencimento por mês) ou avulsa (um vencimento único).
   Não guarda status pago/pendente — isso é sempre calculado (ver decisão
   abaixo).
-- **Movimentacao** ganhou dois campos opcionais: `pendencia_id` e
-  `pendencia_referencia` — preenchidos só quando a movimentação nasceu de
-  "marcar uma pendência como paga" (ver abaixo).
+- **Movimentacao** ganhou três campos opcionais: `pendencia_id` e
+  `pendencia_referencia` (marcar pendência como paga — ver abaixo), e
+  `plano_id` (pagamento de um Plano de "quitar dívida").
+- **Plano** — id, usuario_id, nome, tipo (`guardar_dinheiro`/
+  `quitar_divida`), conta_id (obrigatório), mes_inicio, ativo, e um grupo
+  de campos que variam conforme tipo/submodo: `guardar_modo` (`simples`/
+  `reducao_categoria`), `criterio_reducao` (`percentual_receita`/
+  `valor_fixo`), `alvo_percentual`, `alvo_valor_reducao`, `divida_modo`
+  (`prazo`/`parcelas`), `pendencia_id` (parcelas — a Pendencia recorrente
+  criada por trás), `valor_alvo`, `data_prazo`, `categoria_id`. Meta de
+  "guardar dinheiro" (simples, ou reduzindo gasto numa categoria) ou de
+  "quitar dívida" (prazo livre, ou parcelas). Progresso nunca é guardado
+  — sempre calculado (ver decisão abaixo e `app/planos.py`).
+- **Pendencia** ganhou `numero_parcelas` (opcional) — quando preenchido,
+  a geração de vencimentos para depois desse tanto de meses, em vez de
+  continuar indefinidamente. Usado por Plano de "quitar dívida por
+  parcelas", que cria/gerencia uma Pendencia recorrente com esse teto.
 
 ### Decisões de design
 
@@ -90,6 +104,23 @@ modelagem do banco de dados. O front-end (HTML/CSS/JS puro) será feito por
   `passive_deletes=True`, apagar uma pendência com pagamentos já feitos
   simplesmente funcionava, "descolando" o histórico sem avisar ninguém.
   Corrigido nas três relações.
+- **Progresso de Plano nunca é guardado** — mesmo princípio de saldo e
+  pendência: sempre calculado a partir da atividade financeira real (ver
+  `app/planos.py`). "Guardar dinheiro" **não gera nenhuma Movimentação**
+  — meta simples usa a diferença de saldo da conta antes/depois do início
+  do plano; redução de categoria compara o gasto real mês a mês contra um
+  alvo. "Quitar dívida" **gera despesa** a cada pagamento — modo prazo
+  cria a Movimentação direto (`plano_id`); modo parcelas reaproveita a
+  Pendencia recorrente (Fase 3) com `numero_parcelas`, sem duplicar a
+  lógica de ciclos/pagamento já existente.
+- **`Plano.conta_id` é obrigatório e fixo** (ao contrário de
+  `Pendencia.conta_id`, que é opcional e só uma sugestão) — a conta
+  define o próprio progresso (saldo ou gasto), então não faz sentido
+  escolher outra a cada pagamento.
+- **Baseline de "valor fixo vs. média"** (guardar dinheiro / redução por
+  categoria) é calculado uma vez só, com os 3 meses *antes* do início do
+  plano — fixo, não uma média móvel que mudaria junto com o próprio
+  progresso.
 
 ## Estrutura do projeto
 
@@ -98,11 +129,12 @@ gerenciador-financas/
 ├── app/
 │   ├── __init__.py
 │   ├── database.py      # engine, SessionLocal, Base, get_db()
-│   ├── models.py         # Usuario, Categoria, Conta, Movimentacao, Transferencia, Pendencia, Relatorio, enums
+│   ├── models.py         # Usuario, Categoria, Conta, Movimentacao, Transferencia, Pendencia, Plano, Relatorio, enums
 │   ├── schemas.py        # schemas Pydantic (Create/Update/Out) de cada entidade
 │   ├── security.py       # hash de senha (bcrypt) + JWT (criar/validar token)
-│   ├── contas.py          # cálculo de saldo por conta (individual e em lote)
+│   ├── contas.py          # cálculo de saldo por conta (individual, em lote, e "até uma data")
 │   ├── pendencias.py      # cálculo de ciclos pendentes/atrasados de cada pendência
+│   ├── planos.py          # cálculo de progresso de cada plano (guardar dinheiro / quitar dívida)
 │   ├── relatorios.py      # lógica de agregação dos relatórios (personalizado/comparativo/automático/por-categoria)
 │   ├── scheduler.py       # APScheduler: jobs semanal (seg 01:00) e mensal (dia 1, 01:00)
 │   ├── main.py             # app FastAPI: rotas, CORS, start/stop do scheduler
@@ -112,6 +144,7 @@ gerenciador-financas/
 │   ├── controle.html      # histórico completo + análise por categoria (gráfico e tabela)
 │   ├── contas.html        # gestão de contas bancárias e transferências
 │   ├── pendencias.html    # contas recorrentes/avulsas: criar, editar, marcar como paga
+│   ├── planos.html        # metas de guardar dinheiro / quitar dívida: criar, editar, progresso
 │   ├── relatorios.html    # relatórios: automáticos, personalizado, comparativo
 │   ├── css/
 │   │   ├── style.css       # design "livro-razão" (ver seção Front-end)
@@ -125,14 +158,16 @@ gerenciador-financas/
 │       ├── controle.js     # histórico (filtros/paginação/edição) + análise por categoria
 │       ├── contas.js       # criar/editar/apagar conta, transferências e o histórico delas
 │       ├── pendencias.js   # criar/editar/apagar/pausar pendência, marcar ciclo como pago
+│       ├── planos.js       # criar/editar/apagar/pausar plano, registrar pagamento
 │       └── relatorios.js   # lógica da página de relatórios (usa Chart.js via CDN)
 ├── alembic/
 │   ├── env.py             # já configurado para ler DATABASE_URL e os models
-│   └── versions/          # inclui a migração da tabela `relatorios` e a de `pendencias`
+│   └── versions/          # inclui a migração da tabela `relatorios`, `pendencias` e `planos`
 ├── docker-compose.yml     # sobe o PostgreSQL local (porta 5433)
 ├── test_jwt.py            # bateria de testes automatizados: auth, CRUD, paginação
 ├── test_relatorios.py     # bateria de testes automatizados: relatórios
 ├── test_pendencias.py     # bateria de testes automatizados: pendências
+├── test_planos.py         # bateria de testes automatizados: planos e metas
 ├── alembic.ini
 ├── requirements.txt
 ├── .env.example
@@ -224,6 +259,11 @@ rota protegida extrai o usuário logado do token (`Authorization: Bearer
 | PATCH | `/pendencias/{id}` | sim | Edita pendência própria (campos opcionais — inclui pausar/reativar via `ativa`) |
 | DELETE | `/pendencias/{id}` | sim | Remove pendência própria; `409` se houver pagamentos (Movimentações) vinculados |
 | POST | `/pendencias/{id}/pagar` | sim | Marca um vencimento como pago — cria a Movimentação de verdade, vinculada; `409` se esse vencimento já foi pago, `422` se a data não corresponde a um ciclo pendente real |
+| GET | `/planos` | sim | Lista os planos do usuário logado, cada um já com `progresso` calculado (formato varia conforme tipo/submodo) |
+| POST | `/planos` | sim | Cria plano; `quitar_divida` no modo `parcelas` cria também a Pendencia recorrente por trás |
+| PATCH | `/planos/{id}` | sim | Edita plano próprio (campos opcionais — não permite mudar tipo/submodo, só dados como valor/prazo/categoria/conta e pausar via `ativo`) |
+| DELETE | `/planos/{id}` | sim | Remove plano próprio; `409` se houver pagamentos vinculados. No modo parcelas sem nenhum pagamento, também remove a Pendencia criada por trás |
+| POST | `/planos/{id}/aportar` | sim | Registra um pagamento pra plano de `quitar_divida` no modo `prazo` (parcelas usam `POST /pendencias/{id}/pagar`); `422` se o plano não for desse tipo/modo |
 | GET | `/saldo` | sim | Total de receitas, despesas e saldo geral do usuário logado (soma os saldos iniciais de todas as contas). Não é mais consumida pelo front-end no momento — o Início mostra saldo por conta em vez do total geral (ver Roadmap) |
 
 No Swagger (`/docs`), use o botão **Authorize** e informe o email/senha
@@ -284,6 +324,57 @@ minuto — o script acessa o banco diretamente (reaproveitando
 "voltar no tempo" o `criado_em` de uma pendência recém-criada; todo o
 resto é HTTP puro, como os demais testes. **25/25 passando.**
 
+## Planos e Metas
+
+Dois tipos de plano, cada um com duas submodalidades — `GET /planos`
+calcula o progresso de cada um (nunca guardado):
+
+- **Guardar dinheiro** — nunca gera Movimentação; o progresso vem da
+  atividade financeira que já existe.
+  - *Simples*: `valor_alvo` + `data_prazo`. Progresso = saldo da conta
+    hoje menos o saldo dela no dia anterior ao `mes_inicio` do plano
+    (`calcular_saldo_conta(..., ate_data=...)` em `app/contas.py`).
+  - *Redução de categoria*: `categoria_id` + `criterio_reducao` (
+    `percentual_receita` ou `valor_fixo`) + `data_prazo`. Progresso é
+    avaliado **mês a mês**: o gasto real na categoria (dentro da conta do
+    plano) ficou dentro do alvo? Com `percentual_receita`, o alvo é um
+    percentual da receita do mês (mesma conta). Com `valor_fixo`, o alvo
+    é a média de gasto dos 3 meses *antes* do início (baseline fixo,
+    calculado uma vez só) menos `alvo_valor_reducao`. Resposta inclui a
+    lista mensal (`gasto`, `alvo`, `cumpriu`) e o resumo "X de Y meses".
+- **Quitar dívida** — todo pagamento gera despesa de verdade.
+  - *Prazo*: `valor_alvo` (total) + `data_prazo`, pagamentos avulsos
+    (`POST /planos/{id}/aportar`) vinculados via `plano_id`. Progresso =
+    soma paga / total.
+  - *Parcelas*: `valor_alvo` na criação é o valor **de cada parcela**;
+    junto com `numero_parcelas` e `dia_vencimento`, o plano cria uma
+    `Pendencia` recorrente por trás (com `numero_parcelas` travando o
+    fim) e guarda `pendencia_id` — o total (`parcela × numero_parcelas`)
+    fica salvo em `Plano.valor_alvo`. Pagar uma parcela **é** `POST
+    /pendencias/{id}/pagar` (não existe rota própria) — a conta usada é
+    sempre a do plano; a Movimentação resultante grava `pendencia_id` **e**
+    `plano_id`, então a mesma pendência continua aparecendo normalmente
+    em `GET /pendencias`.
+
+`Plano.conta_id` é **obrigatório e fixo** (ao contrário de
+`Pendencia.conta_id`, que é opcional): a conta define o progresso, então
+não há escolha de conta por pagamento. `PATCH /planos/{id}` não aceita
+mudar tipo/submodo — só dados como valor, prazo, categoria, conta e
+pausar/reativar (`ativo`); pra mudar de modalidade, apague e crie outro.
+
+### Testes dos planos
+
+`test_planos.py` cobre as 4 combinações tipo/submodo com números
+conferidos à mão: saldo antes/depois da conta (simples), meses
+cumpridos/não cumpridos nos dois critérios de redução (percentual e valor
+fixo, com baseline fixo), aportes avulsos e progresso (dívida por prazo),
+criação da Pendencia por trás + pagamento de parcela gravando
+`pendencia_id` e `plano_id` + `numero_parcelas` travando os ciclos mesmo
+com vários meses de atraso acumulado (dívida por parcelas), `DELETE`
+bloqueado com pagamento e liberado sem (inclusive removendo a Pendencia
+órfã no modo parcelas), validações de erro de criação por combinação
+tipo/modo, e isolamento entre usuários. **44/44 passando.**
+
 ## Front-end
 
 HTML/CSS/JS puro (sem framework, sem build step) em `front/`. Design com
@@ -325,13 +416,17 @@ histórico das transferências já feitas. A página **Pendências**
 (`pendencias.html`) lista contas recorrentes e avulsas com seus
 vencimentos pendentes/atrasados, permite criar/editar/pausar/apagar, e
 marcar cada vencimento como pago (confirmando conta/valor/data). E uma
-página de **relatórios** (`relatorios.html`) com as três modalidades —
-automáticos, personalizado, comparativo — usando
-[Chart.js](https://www.chartjs.org/) via CDN para os gráficos (usado
-também em Controle, pro gráfico de categoria). Sessão
-expirada (token vencido) redireciona automaticamente para a tela de login
-em todas as páginas. O item "Planos e Metas" já aparece na sidebar,
-marcado como "em breve" — é a próxima fase.
+página **Planos e Metas** (`planos.html`) traz um formulário em cascata
+(tipo → submodo → campos daquele submodo) e cards de progresso — barra
+pra meta simples/dívida, checklist mensal pra redução de categoria, lista
+de parcelas (reaproveitando o mesmo componente visual de Pendências) pra
+dívida por parcelas. E uma página de **relatórios** (`relatorios.html`)
+com as três modalidades — automáticos, personalizado, comparativo —
+usando [Chart.js](https://www.chartjs.org/) via CDN para os gráficos
+(usado também em Controle, pro gráfico de categoria). Sessão expirada
+(token vencido) redireciona automaticamente para a tela de login em
+todas as páginas. Com Planos e Metas, todos os itens da sidebar estão
+ativos — não sobrou nenhum "em breve".
 
 O contrato HTTP entre front e back (nomes de campo, formato das respostas,
 FormData sempre enviando valores como string) foi validado com chamadas
@@ -477,8 +572,14 @@ e aprovada.
   no grid do Início, rotas `GET/POST/PATCH/DELETE /pendencias` + `POST
   /pendencias/{id}/pagar`. Sem subcategorias ainda (fora de escopo desde
   a Fase 2, adiado pra mini-fase própria).
-- ⏳ **Fase 4 — Planos e Metas**: metas de economia + quitação de dívidas
-  no mesmo sistema.
+- ✅ **Fase 4 — Planos e Metas** (v2.4.0): concluída. Nova tabela `Plano`
+  — "guardar dinheiro" (meta simples via saldo da conta, ou redução de
+  gasto numa categoria) e "quitar dívida" (prazo livre, ou parcelas —
+  reaproveitando a Pendencia recorrente da Fase 3 com `numero_parcelas`
+  novo). Progresso nunca é guardado, sempre calculado. Página nova
+  `planos.html`, rotas `GET/POST/PATCH/DELETE /planos` + `POST
+  /planos/{id}/aportar`. Com essa fase, todos os itens da sidebar
+  planejados desde o início do projeto estão implementados.
 - ⏳ **Protótipo visual**: decisão pendente entre manter o "livro-razão"
   claro ou migrar para um dashboard escuro (referências anexadas pelo
   usuário) — a decidir olhando um protótipo antes de aplicar em toda a

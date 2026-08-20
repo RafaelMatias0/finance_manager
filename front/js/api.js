@@ -95,6 +95,9 @@ const Api = {
   meuUsuario() {
     return requisitar("GET", "/usuarios/me");
   },
+  atualizarMeuUsuario(dados) {
+    return requisitar("PATCH", "/usuarios/me", { body: dados });
+  },
   saldo() {
     return requisitar("GET", "/saldo");
   },
@@ -152,12 +155,31 @@ const Api = {
   pagarPendencia(id, dados) {
     return requisitar("POST", `/pendencias/${id}/pagar`, { body: dados });
   },
+  // ---------- Planos ----------
+  planos() {
+    return requisitar("GET", "/planos");
+  },
+  criarPlano(dados) {
+    return requisitar("POST", "/planos", { body: dados });
+  },
+  editarPlano(id, dados) {
+    return requisitar("PATCH", `/planos/${id}`, { body: dados });
+  },
+  apagarPlano(id) {
+    return requisitar("DELETE", `/planos/${id}`);
+  },
+  aportarPlano(id, dados) {
+    return requisitar("POST", `/planos/${id}/aportar`, { body: dados });
+  },
   // ---------- Relatórios ----------
   relatorioPersonalizado(filtros) {
     return requisitar("GET", "/relatorios/personalizado", { query: filtros });
   },
   porCategoria(filtros) {
     return requisitar("GET", "/relatorios/por-categoria", { query: filtros });
+  },
+  saldoDiarioPorConta() {
+    return requisitar("GET", "/relatorios/saldo-diario-por-conta");
   },
   relatorioComparativo(filtros) {
     return requisitar("GET", "/relatorios/comparativo", { query: filtros });

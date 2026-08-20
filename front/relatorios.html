@@ -3,10 +3,24 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+  // Escuro é o padrão do site. Só fica claro se o usuário escolheu
+  // explicitamente "claro" antes (ver js/tema.js). Roda antes da
+  // primeira pintura pra não piscar claro e depois escurecer.
+  (function () {
+    try {
+      if (localStorage.getItem("gf_tema") !== "claro") {
+        document.documentElement.setAttribute("data-tema", "escuro");
+      }
+    } catch (erro) {
+      document.documentElement.setAttribute("data-tema", "escuro");
+    }
+  })();
+</script>
 <title>Relatórios — Cofre</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/relatorios.css" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
@@ -45,27 +59,52 @@
         <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
         <span class="sidebar__label">Pendências</span>
       </a>
-      <span class="sidebar__link sidebar__link--desabilitado" title="Em breve">
+      <a href="planos.html" class="sidebar__link" data-pagina="planos">
         <span class="sidebar__icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span>
         <span class="sidebar__label">Planos e Metas</span>
-        <span class="sidebar__selo-em-breve">em breve</span>
-      </span>
+      </a>
     </nav>
 
-    <div class="sidebar__rodape">
-      <button id="btn-sair-sidebar" class="btn btn--fantasma btn--pequeno"><span class="rotulo-completo">Sair</span></button>
-    </div>
   </aside>
 
   <div class="app-shell__conteudo">
-    <header class="topo"></header>
+    <header class="topo">
+      <div>
+        <h1 class="topo__titulo">Relatórios</h1>
+        <p class="topo__subtitulo">Automáticos, personalizados ou comparando categorias.</p>
+      </div>
+      <div class="topo__acoes">
+        <button type="button" id="btn-alternar-tema" class="btn-icone-tema" aria-label="Alternar tema claro/escuro">
+          <span class="icone-tema icone-tema--lua"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+          <span class="icone-tema icone-tema--sol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></span>
+        </button>
+        <div class="menu-usuario" id="menu-usuario">
+          <button type="button" id="btn-menu-usuario" class="menu-usuario__botao" aria-haspopup="true" aria-expanded="false">
+            <span class="menu-usuario__avatar" id="menu-usuario-avatar">?</span>
+            <span class="menu-usuario__nome" id="menu-usuario-nome">Carregando…</span>
+            <svg class="menu-usuario__seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="menu-usuario__dropdown oculto" id="menu-usuario-dropdown" role="menu">
+            <button type="button" class="menu-usuario__item" id="btn-abrir-perfil" role="menuitem">
+              <span class="menu-usuario__item-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></span>
+              Perfil
+            </button>
+            <hr class="menu-usuario__divisor" />
+            <button type="button" class="menu-usuario__item menu-usuario__item--sair" id="btn-sair" role="menuitem">
+              <span class="menu-usuario__item-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></span>
+              Sair
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
 
     <main class="tela-app">
 
-      <div class="abas-relatorio" role="tablist">
-        <button class="aba-relatorio is-ativa" data-painel="automaticos" role="tab" aria-selected="true">Automáticos</button>
-        <button class="aba-relatorio" data-painel="personalizado" role="tab" aria-selected="false">Personalizado</button>
-        <button class="aba-relatorio" data-painel="comparativo" role="tab" aria-selected="false">Comparativo</button>
+      <div class="abas abas--conteudo" role="tablist">
+        <button class="aba is-ativa" data-painel="automaticos" role="tab" aria-selected="true">Automáticos</button>
+        <button class="aba" data-painel="personalizado" role="tab" aria-selected="false">Personalizado</button>
+        <button class="aba" data-painel="comparativo" role="tab" aria-selected="false">Comparativo</button>
       </div>
 
       <!-- ===================== AUTOMÁTICOS ===================== -->
@@ -131,7 +170,7 @@
 
         <div id="banner-visualizacao" class="banner-visualizacao oculto">
           <span id="banner-visualizacao-texto"></span>
-          <button id="btn-fechar-banner" class="link-acao">fechar</button>
+          <button id="btn-fechar-banner" class="link-acao link-acao--dispensar">fechar</button>
         </div>
 
         <div id="resultado-personalizado" class="resultado-relatorio oculto">
@@ -244,12 +283,35 @@
   </div>
 </div>
 
+<div id="modal-perfil" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-perfil">
+  <div class="modal__conteudo">
+    <h2 class="painel__titulo" id="titulo-modal-perfil">Perfil</h2>
+    <form id="form-perfil" class="formulario">
+      <p class="erro-formulario" id="erro-perfil" role="alert"></p>
+      <label class="campo">
+        <span>Nome</span>
+        <input type="text" name="nome" required minlength="1" maxlength="120" />
+      </label>
+      <div class="campo">
+        <span>Email</span>
+        <div class="campo-somente-leitura" id="texto-email-perfil"></div>
+      </div>
+      <div class="modal__acoes">
+        <button type="button" id="btn-cancelar-perfil" class="btn btn--fantasma">Cancelar</button>
+        <button type="submit" class="btn btn--principal">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div id="regiao-toast" class="regiao-toast" aria-live="polite"></div>
 
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
+<script src="js/tema.js"></script>
 <script src="js/api.js"></script>
 <script src="js/relatorios.js"></script>
 <script src="js/sidebar.js"></script>
+<script src="js/usuario.js"></script>
 </body>
 </html>

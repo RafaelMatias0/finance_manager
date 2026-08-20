@@ -204,7 +204,7 @@ document.getElementById("btn-pagina-proxima").addEventListener("click", () => {
 // ---------- Apagar ----------
 
 async function apagarMovimentacao(mov) {
-  const confirmado = confirm(`Apagar a movimentação de ${formatarMoeda(mov.valor)} em ${formatarDataBR(mov.data)}?`);
+  const confirmado = await confirmarAcao(`Apagar a movimentação de ${formatarMoeda(mov.valor)} em ${formatarDataBR(mov.data)}?`);
   if (!confirmado) return;
   try {
     await Api.apagarMovimentacao(mov.id);
@@ -254,6 +254,7 @@ document.getElementById("form-edicao").addEventListener("submit", async (evento)
   limparErro("erro-edicao");
   const dados = new FormData(evento.target);
 
+  const destravar = travarBotaoEnvio(evento.target);
   try {
     await Api.editarMovimentacao(dados.get("id"), {
       valor: dados.get("valor"),
@@ -267,28 +268,40 @@ document.getElementById("form-edicao").addEventListener("submit", async (evento)
     toast("Movimentação atualizada.");
   } catch (erro) {
     mostrarErro("erro-edicao", erro.message);
+  } finally {
+    destravar();
   }
 });
 
 // ---------- Gráfico: gastos por categoria (mês atual) ----------
 
+// Canvas (Chart.js) não entende var(--...) — só cores resolvidas. Por isso
+// toda cor de gráfico é lida assim, na hora de renderizar, em vez de
+// hardcoded — o mesmo hex nunca sobrevive uma troca de tema. Chamado de
+// novo a cada render (barato) pra sempre pegar o tema atual.
+function corToken(nome) {
+  return getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
+}
+
 // Paleta categórica validada com a skill dataviz — 8 matizes de cor fixa,
 // nunca cicladas (a partir da 9ª categoria, agrupa em "Outras" em vez de
-// gerar mais cores). Validada contra --papel-cartao (#FBFBF8, a superfície
-// onde o card do gráfico fica) com scripts/validate_palette.js: todos os
-// checks passam (contraste abaixo de 3:1 em 3 matizes é aceitável porque a
-// legenda — sempre visível — já funciona como rótulo direto de cada fatia).
-const PALETA_CATEGORICA = [
-  "#2a78d6", // azul
-  "#eb6834", // laranja
-  "#1baf7a", // água
-  "#eda100", // amarelo
-  "#e87ba4", // magenta
-  "#008300", // verde
-  "#4a3aa7", // violeta
-  "#e34948", // vermelho
-];
-const COR_OUTRAS = "#A9AF9C"; // --linha-forte: neutro pro grupo "Outras"
+// gerar mais cores). Claro e escuro validados cada um contra a superfície
+// de verdade do próprio tema (scripts/validate_palette.js, --superficie):
+// todos os checks passam (contraste abaixo de 3:1 em algumas matizes no
+// claro é aceitável porque a legenda — sempre visível — já funciona como
+// rótulo direto de cada fatia). Valores em --grafico-1..8 (style.css).
+function paletaCategorica() {
+  return [1, 2, 3, 4, 5, 6, 7, 8].map((i) => corToken(`--grafico-${i}`));
+}
+
+// Preenchimento de área do gráfico de linhas (mesma cor da linha, bem
+// transparente, tipo sombra).
+function corComTransparencia(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 let graficoCategoriaMes = null;
 
@@ -315,18 +328,21 @@ async function carregarGraficoCategoria() {
   vazio.classList.add("oculto");
   canvas.classList.remove("oculto");
 
+  const paleta = paletaCategorica();
+  const corOutras = corToken("--linha-forte");
+
   // Mais categorias do que cores na paleta: as menores (já vêm ordenadas
   // por total decrescente) viram uma fatia só "Outras" — nunca gera cor nova.
   let fatias = dados;
   let temOutras = false;
-  if (dados.length > PALETA_CATEGORICA.length) {
-    const principais = dados.slice(0, PALETA_CATEGORICA.length - 1);
-    const resto = dados.slice(PALETA_CATEGORICA.length - 1);
+  if (dados.length > paleta.length) {
+    const principais = dados.slice(0, paleta.length - 1);
+    const resto = dados.slice(paleta.length - 1);
     const totalResto = resto.reduce((soma, c) => soma + c.total, 0);
     fatias = [...principais, { categoria_nome: "Outras", total: totalResto }];
     temOutras = true;
   }
-  const cores = fatias.map((_, i) => (temOutras && i === fatias.length - 1 ? COR_OUTRAS : PALETA_CATEGORICA[i]));
+  const cores = fatias.map((_, i) => (temOutras && i === fatias.length - 1 ? corOutras : paleta[i]));
 
   if (graficoCategoriaMes) graficoCategoriaMes.destroy();
   graficoCategoriaMes = new Chart(canvas.getContext("2d"), {
@@ -334,6 +350,108 @@ async function carregarGraficoCategoria() {
     data: {
       labels: fatias.map((c) => c.categoria_nome),
       datasets: [{ data: fatias.map((c) => c.total), backgroundColor: cores }],
+    },
+    options: { responsive: true, plugins: { legend: { position: "bottom" } } },
+  });
+}
+
+// ---------- Gráfico: balanço diário por conta, últimos 30 dias (destaque da página) ----------
+
+let graficoSaldoDiario = null;
+
+async function carregarGraficoSaldoDiario() {
+  let dados;
+  try {
+    dados = await Api.saldoDiarioPorConta();
+  } catch (erro) {
+    toast(erro.message, "erro");
+    return;
+  }
+
+  const vazio = document.getElementById("grafico-saldo-diario-vazio");
+  const canvas = document.getElementById("grafico-saldo-diario");
+
+  if (dados.length === 0) {
+    vazio.classList.remove("oculto");
+    canvas.classList.add("oculto");
+    return;
+  }
+  vazio.classList.add("oculto");
+  canvas.classList.remove("oculto");
+
+  // Mesma janela (fixa em até 30 dias, ou menor se a atividade do usuário
+  // for mais recente que isso — ver calcular_serie_saldo_diaria) pra todas
+  // as contas, então todo mundo tem ponto em todo dia (sem buraco) e dá
+  // pra usar os dias da primeira conta como eixo X direto.
+  const dias = dados[0].serie.map((p) => p.dia);
+
+  const corSuperficie = corToken("--superficie");
+  const paleta = paletaCategorica();
+
+  const datasets = dados.map((conta, i) => {
+    const cor = paleta[i % paleta.length];
+    return {
+      label: conta.conta_nome,
+      data: conta.serie.map((p) => p.saldo),
+      borderColor: cor,
+      backgroundColor: corComTransparencia(cor, 0.15),
+      // Ponto só aparece no hover, e só o exato onde o mouse está (não os
+      // outros pontos daquele dia) — ver interaction.intersect abaixo.
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      pointHitRadius: 10,
+      pointBackgroundColor: cor,
+      pointBorderColor: corSuperficie,
+      fill: true,
+      tension: 0.4,
+    };
+  });
+
+  if (graficoSaldoDiario) graficoSaldoDiario.destroy();
+  graficoSaldoDiario = new Chart(canvas.getContext("2d"), {
+    type: "line",
+    data: { labels: dias.map(formatarDataBR), datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: "nearest", intersect: true },
+      plugins: { legend: { position: "bottom" } },
+      scales: { y: { ticks: { callback: (valor) => formatarMoeda(valor) } } },
+    },
+  });
+}
+
+// ---------- Gráfico: balanço geral (receita vs. despesa, desde o início) ----------
+
+let graficoBalancoGeral = null;
+
+async function carregarGraficoBalancoGeral() {
+  let dados;
+  try {
+    dados = await Api.saldo();
+  } catch (erro) {
+    toast(erro.message, "erro");
+    return;
+  }
+
+  const vazio = document.getElementById("grafico-balanco-geral-vazio");
+  const canvas = document.getElementById("grafico-balanco-geral");
+  const totalReceitas = Number(dados.total_receitas);
+  const totalDespesas = Number(dados.total_despesas);
+
+  if (totalReceitas === 0 && totalDespesas === 0) {
+    vazio.classList.remove("oculto");
+    canvas.classList.add("oculto");
+    return;
+  }
+  vazio.classList.add("oculto");
+  canvas.classList.remove("oculto");
+
+  if (graficoBalancoGeral) graficoBalancoGeral.destroy();
+  graficoBalancoGeral = new Chart(canvas.getContext("2d"), {
+    type: "doughnut",
+    data: {
+      labels: ["Receitas", "Despesas"],
+      datasets: [{ data: [totalReceitas, totalDespesas], backgroundColor: [corToken("--receita"), corToken("--despesa")] }],
     },
     options: { responsive: true, plugins: { legend: { position: "bottom" } } },
   });
@@ -389,9 +507,24 @@ function renderizarResumoCategorias(dados) {
   });
 }
 
+// Chart.js não escuta variável CSS sozinho — troca de tema em runtime
+// (clique no sol/lua) precisa recriar os 3 gráficos pra pegar as cores
+// novas (ver corToken/paletaCategorica acima e o dispatch em js/tema.js).
+document.addEventListener("tema-alterado", () => {
+  carregarGraficoSaldoDiario();
+  carregarGraficoCategoria();
+  carregarGraficoBalancoGeral();
+});
+
 // ---------- Inicialização ----------
 
 (async function iniciar() {
   await Promise.all([carregarCategorias(), carregarContas()]);
-  await Promise.all([carregarHistorico(), carregarGraficoCategoria(), carregarResumoCategorias()]);
+  await Promise.all([
+    carregarHistorico(),
+    carregarGraficoSaldoDiario(),
+    carregarGraficoCategoria(),
+    carregarGraficoBalancoGeral(),
+    carregarResumoCategorias(),
+  ]);
 })();

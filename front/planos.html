@@ -3,10 +3,24 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+  // Escuro é o padrão do site. Só fica claro se o usuário escolheu
+  // explicitamente "claro" antes (ver js/tema.js). Roda antes da
+  // primeira pintura pra não piscar claro e depois escurecer.
+  (function () {
+    try {
+      if (localStorage.getItem("gf_tema") !== "claro") {
+        document.documentElement.setAttribute("data-tema", "escuro");
+      }
+    } catch (erro) {
+      document.documentElement.setAttribute("data-tema", "escuro");
+    }
+  })();
+</script>
 <title>Planos e Metas — Cofre</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body data-pagina="planos">
@@ -49,13 +63,39 @@
       </a>
     </nav>
 
-    <div class="sidebar__rodape">
-      <button id="btn-sair-sidebar" class="btn btn--fantasma btn--pequeno"><span class="rotulo-completo">Sair</span></button>
-    </div>
   </aside>
 
   <div class="app-shell__conteudo">
-    <header class="topo"></header>
+    <header class="topo">
+      <div>
+        <h1 class="topo__titulo">Planos e Metas</h1>
+        <p class="topo__subtitulo">Guarde dinheiro ou quite dívidas, um passo de cada vez.</p>
+      </div>
+      <div class="topo__acoes">
+        <button type="button" id="btn-alternar-tema" class="btn-icone-tema" aria-label="Alternar tema claro/escuro">
+          <span class="icone-tema icone-tema--lua"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+          <span class="icone-tema icone-tema--sol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></span>
+        </button>
+        <div class="menu-usuario" id="menu-usuario">
+          <button type="button" id="btn-menu-usuario" class="menu-usuario__botao" aria-haspopup="true" aria-expanded="false">
+            <span class="menu-usuario__avatar" id="menu-usuario-avatar">?</span>
+            <span class="menu-usuario__nome" id="menu-usuario-nome">Carregando…</span>
+            <svg class="menu-usuario__seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="menu-usuario__dropdown oculto" id="menu-usuario-dropdown" role="menu">
+            <button type="button" class="menu-usuario__item" id="btn-abrir-perfil" role="menuitem">
+              <span class="menu-usuario__item-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></span>
+              Perfil
+            </button>
+            <hr class="menu-usuario__divisor" />
+            <button type="button" class="menu-usuario__item menu-usuario__item--sair" id="btn-sair" role="menuitem">
+              <span class="menu-usuario__item-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></span>
+              Sair
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
 
     <main class="tela-app">
 
@@ -75,107 +115,129 @@
 <div id="modal-form-plano" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-plano">
   <div class="modal__conteudo">
     <h2 class="painel__titulo" id="titulo-modal-plano">Novo plano</h2>
+
+    <div class="passos-plano" id="passos-plano-indicador">
+      <button type="button" class="passos-plano__item" data-passo="1" aria-label="Passo 1: Básico">
+        <span class="passos-plano__bolha">1</span>
+      </button>
+      <span class="passos-plano__linha" data-linha="1"></span>
+      <button type="button" class="passos-plano__item" data-passo="2" aria-label="Passo 2: Como funciona">
+        <span class="passos-plano__bolha">2</span>
+      </button>
+      <span class="passos-plano__linha" data-linha="2"></span>
+      <button type="button" class="passos-plano__item" data-passo="3" aria-label="Passo 3: Valores">
+        <span class="passos-plano__bolha">3</span>
+      </button>
+    </div>
+
     <form id="form-plano" class="formulario">
       <p class="erro-formulario" id="erro-plano" role="alert"></p>
       <input type="hidden" name="id" />
 
-      <label class="campo">
-        <span>Nome</span>
-        <input type="text" name="nome" required maxlength="120" placeholder="Ex: Reserva de emergência" />
-      </label>
-
-      <div class="campo-grupo-tipo" role="radiogroup" aria-label="Tipo de plano" id="grupo-tipo-plano">
-        <label class="opcao-tipo">
-          <input type="radio" name="tipo" value="guardar_dinheiro" checked />
-          <span>Guardar dinheiro</span>
+      <div class="formulario-passo" id="formulario-passo-1" data-passo="1">
+        <label class="campo">
+          <span>Nome</span>
+          <input type="text" name="nome" required maxlength="120" placeholder="Ex: Reserva de emergência" />
         </label>
-        <label class="opcao-tipo">
-          <input type="radio" name="tipo" value="quitar_divida" />
-          <span>Quitar dívida</span>
+
+        <div class="campo-grupo-tipo" role="radiogroup" aria-label="Tipo de plano" id="grupo-tipo-plano">
+          <label class="opcao-tipo">
+            <input type="radio" name="tipo" value="guardar_dinheiro" checked />
+            <span>Guardar dinheiro</span>
+          </label>
+          <label class="opcao-tipo">
+            <input type="radio" name="tipo" value="quitar_divida" />
+            <span>Quitar dívida</span>
+          </label>
+        </div>
+
+        <label class="campo">
+          <span>Conta</span>
+          <select name="conta_id" id="select-conta-plano" required></select>
         </label>
-      </div>
 
-      <label class="campo">
-        <span>Conta</span>
-        <select name="conta_id" id="select-conta-plano" required></select>
-      </label>
-
-      <label class="campo">
-        <span>Mês de início</span>
-        <input type="month" name="mes_inicio" required />
-      </label>
-
-      <div class="campo-grupo-tipo" role="radiogroup" aria-label="Como guardar" id="grupo-guardar-modo">
-        <label class="opcao-tipo">
-          <input type="radio" name="guardar_modo" value="simples" checked />
-          <span>Meta simples</span>
-        </label>
-        <label class="opcao-tipo">
-          <input type="radio" name="guardar_modo" value="reducao_categoria" />
-          <span>Reduzir categoria</span>
+        <label class="campo">
+          <span>Mês de início</span>
+          <input type="month" name="mes_inicio" required />
         </label>
       </div>
 
-      <div class="campo-grupo-tipo oculto" role="radiogroup" aria-label="Como quitar" id="grupo-divida-modo">
-        <label class="opcao-tipo">
-          <input type="radio" name="divida_modo" value="prazo" checked />
-          <span>Prazo livre</span>
+      <div class="formulario-passo oculto" id="formulario-passo-2" data-passo="2">
+        <div class="campo-grupo-tipo" role="radiogroup" aria-label="Como guardar" id="grupo-guardar-modo">
+          <label class="opcao-tipo">
+            <input type="radio" name="guardar_modo" value="simples" checked />
+            <span>Meta simples</span>
+          </label>
+          <label class="opcao-tipo">
+            <input type="radio" name="guardar_modo" value="reducao_categoria" />
+            <span>Reduzir categoria</span>
+          </label>
+        </div>
+
+        <div class="campo-grupo-tipo oculto" role="radiogroup" aria-label="Como quitar" id="grupo-divida-modo">
+          <label class="opcao-tipo">
+            <input type="radio" name="divida_modo" value="prazo" checked />
+            <span>Prazo livre</span>
+          </label>
+          <label class="opcao-tipo">
+            <input type="radio" name="divida_modo" value="parcelas" />
+            <span>Parcelas</span>
+          </label>
+        </div>
+
+        <label class="campo oculto" id="campo-categoria-plano">
+          <span id="rotulo-categoria-plano">Categoria</span>
+          <select name="categoria_id" id="select-categoria-plano"></select>
         </label>
-        <label class="opcao-tipo">
-          <input type="radio" name="divida_modo" value="parcelas" />
-          <span>Parcelas</span>
-        </label>
+
+        <div class="campo-grupo-tipo oculto" role="radiogroup" aria-label="Critério de redução" id="grupo-criterio-reducao">
+          <label class="opcao-tipo">
+            <input type="radio" name="criterio_reducao" value="percentual_receita" checked />
+            <span>% da receita</span>
+          </label>
+          <label class="opcao-tipo">
+            <input type="radio" name="criterio_reducao" value="valor_fixo" />
+            <span>Valor fixo vs. média</span>
+          </label>
+        </div>
       </div>
 
-      <label class="campo oculto" id="campo-categoria-plano">
-        <span id="rotulo-categoria-plano">Categoria</span>
-        <select name="categoria_id" id="select-categoria-plano"></select>
-      </label>
-
-      <div class="campo-grupo-tipo oculto" role="radiogroup" aria-label="Critério de redução" id="grupo-criterio-reducao">
-        <label class="opcao-tipo">
-          <input type="radio" name="criterio_reducao" value="percentual_receita" checked />
-          <span>% da receita</span>
+      <div class="formulario-passo oculto" id="formulario-passo-3" data-passo="3">
+        <label class="campo oculto" id="campo-alvo-percentual">
+          <span>Gastar no máximo (% da receita do mês)</span>
+          <input type="number" name="alvo_percentual" step="0.01" min="0.01" max="100" />
         </label>
-        <label class="opcao-tipo">
-          <input type="radio" name="criterio_reducao" value="valor_fixo" />
-          <span>Valor fixo vs. média</span>
+
+        <label class="campo oculto" id="campo-alvo-valor-reducao">
+          <span>Reduzir (R$) vs. média dos últimos 3 meses</span>
+          <input type="number" name="alvo_valor_reducao" step="0.01" min="0.01" />
+        </label>
+
+        <label class="campo oculto" id="campo-valor-alvo">
+          <span id="rotulo-valor-alvo">Valor alvo</span>
+          <input type="number" name="valor_alvo" step="0.01" min="0.01" />
+        </label>
+
+        <label class="campo oculto" id="campo-data-prazo">
+          <span>Prazo (data-alvo)</span>
+          <input type="date" name="data_prazo" />
+        </label>
+
+        <label class="campo oculto" id="campo-numero-parcelas">
+          <span>Número de parcelas</span>
+          <input type="number" name="numero_parcelas" min="1" max="600" />
+        </label>
+
+        <label class="campo oculto" id="campo-dia-vencimento-plano">
+          <span>Dia do vencimento (todo mês)</span>
+          <input type="number" name="dia_vencimento" min="1" max="31" />
         </label>
       </div>
-
-      <label class="campo oculto" id="campo-alvo-percentual">
-        <span>Gastar no máximo (% da receita do mês)</span>
-        <input type="number" name="alvo_percentual" step="0.01" min="0.01" max="100" />
-      </label>
-
-      <label class="campo oculto" id="campo-alvo-valor-reducao">
-        <span>Reduzir (R$) vs. média dos últimos 3 meses</span>
-        <input type="number" name="alvo_valor_reducao" step="0.01" min="0.01" />
-      </label>
-
-      <label class="campo oculto" id="campo-valor-alvo">
-        <span id="rotulo-valor-alvo">Valor alvo</span>
-        <input type="number" name="valor_alvo" step="0.01" min="0.01" />
-      </label>
-
-      <label class="campo oculto" id="campo-data-prazo">
-        <span>Prazo (data-alvo)</span>
-        <input type="date" name="data_prazo" />
-      </label>
-
-      <label class="campo oculto" id="campo-numero-parcelas">
-        <span>Número de parcelas</span>
-        <input type="number" name="numero_parcelas" min="1" max="600" />
-      </label>
-
-      <label class="campo oculto" id="campo-dia-vencimento-plano">
-        <span>Dia do vencimento (todo mês)</span>
-        <input type="number" name="dia_vencimento" min="1" max="31" />
-      </label>
 
       <div class="modal__acoes">
         <button type="button" id="btn-cancelar-plano" class="btn btn--fantasma">Cancelar</button>
-        <button type="submit" class="btn btn--principal">Salvar</button>
+        <button type="button" id="btn-passo-anterior-plano" class="btn btn--fantasma oculto">Anterior</button>
+        <button type="button" id="btn-avancar-plano" class="btn btn--principal">Próximo</button>
       </div>
     </form>
   </div>
@@ -210,12 +272,46 @@
   </div>
 </div>
 
+<div id="modal-perfil" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-perfil">
+  <div class="modal__conteudo">
+    <h2 class="painel__titulo" id="titulo-modal-perfil">Perfil</h2>
+    <form id="form-perfil" class="formulario">
+      <p class="erro-formulario" id="erro-perfil" role="alert"></p>
+      <label class="campo">
+        <span>Nome</span>
+        <input type="text" name="nome" required minlength="1" maxlength="120" />
+      </label>
+      <div class="campo">
+        <span>Email</span>
+        <div class="campo-somente-leitura" id="texto-email-perfil"></div>
+      </div>
+      <div class="modal__acoes">
+        <button type="button" id="btn-cancelar-perfil" class="btn btn--fantasma">Cancelar</button>
+        <button type="submit" class="btn btn--principal">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="modal-confirmar" class="modal oculto" role="alertdialog" aria-modal="true" aria-labelledby="confirmar-mensagem">
+  <div class="modal__conteudo modal__conteudo--confirmar">
+    <p id="confirmar-mensagem" class="confirmar__mensagem"></p>
+    <div class="modal__acoes">
+      <button type="button" id="btn-confirmar-nao" class="btn btn--fantasma">Cancelar</button>
+      <button type="button" id="btn-confirmar-sim" class="btn btn--perigo">Apagar</button>
+    </div>
+  </div>
+</div>
+
 <div id="regiao-toast" class="regiao-toast" aria-live="polite"></div>
 
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
+<script src="js/tema.js"></script>
 <script src="js/api.js"></script>
+<script src="js/confirmar.js"></script>
 <script src="js/planos.js"></script>
 <script src="js/sidebar.js"></script>
+<script src="js/usuario.js"></script>
 </body>
 </html>

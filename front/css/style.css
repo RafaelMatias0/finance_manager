@@ -1,65 +1,176 @@
 /* ============================================================
-   COFRE — sistema de design "livro-razão"
+   COFRE — sistema de design "orbe"
 
-   Conceito: precisão contábil, não fintech genérica. Fundo papel,
-   tinta verde-floresta, números em monoespaçada como um razão de
-   verdade. Verde/terracota codificam receita/despesa (informação
-   real, não decoração). O saldo final leva sublinhado duplo — a
-   convenção contábil de fechamento de conta.
+   Conceito: finanças pessoais não precisam parecer planilha. A
+   identidade usa formas arredondadas, gradientes violeta suaves e
+   cor com propósito (verde = entrou dinheiro, coral = saiu, âmbar =
+   atenção) para um público de 20 a 35 anos — direto, colorido, sem
+   ser barulhento. Cantos generosos, sombras coloridas (nunca cinza
+   pura), micro-animações discretas em cada interação.
    ============================================================ */
 
 :root {
-  /* Cor */
-  --papel: #EDEEE7;
-  --papel-cartao: #FBFBF8;
-  --tinta: #16241D;
-  --tinta-suave: #4A5850;
-  --linha: #D3D6C9;
-  --linha-forte: #A9AF9C;
-  --receita: #2F6F4E;
-  --receita-fundo: #E4EFE7;
-  --despesa: #B3462C;
-  --despesa-fundo: #F5E7E1;
-  --dourado: #A9862E;
-  --dourado-fundo: #F1E9D2;
-  --erro: #A3341E;
-  --erro-fundo: #FBE9E5;
+  /* ---------- Base ---------- */
+  --bg: #F6F4FC;
+  --bg-blob-1: #EAE3FF;
+  --bg-blob-2: #FFE9E0;
+  --superficie: #FFFFFF;
+  --superficie-2: #FBFAFF;
+  --tinta: #221C35;
+  --tinta-suave: #6E6789; /* nome mantido: contas.js/controle.js referenciam var(--tinta-suave) inline */
+  --tinta-fraca: #A79FC9;
+  --linha: #ECE7F9;
+  --linha-forte: #DCD3F5;
 
-  /* Sidebar (mais escura que o resto, pra dar hierarquia sem redesenhar
-     o app inteiro — ver decisão pendente de direção visual completa) */
-  --sidebar-fundo: #16241D;
-  --sidebar-texto: #C9D2C5;
-  --sidebar-texto-ativo: #FBFBF8;
-  --sidebar-hover: #223327;
+  /* ---------- Marca ---------- */
+  --marca: #7C5CFC;
+  --marca-escura: #6142E0;
+  --marca-clara: #9C84FF;
+  --marca-suave: #EFE9FF;
+  --marca-gradiente: linear-gradient(150deg, #8A6BFF 0%, #6142E0 100%);
+  --marca-gradiente-botao: linear-gradient(135deg, #8A6BFF 0%, #C361F2 55%, #FF6FA5 100%);
+  --secundario-gradiente: linear-gradient(135deg, #22C1D6 0%, #1789A0 100%);
 
-  /* Tipografia */
-  --fonte-display: "Lora", Georgia, serif;
+  /* ---------- Semânticas ---------- */
+  --receita: #10A66E;
+  --receita-forte: #0C8F5E;
+  --receita-fundo: #DEFBEF;
+  --despesa: #F0435C;
+  --despesa-forte: #D62B46;
+  --despesa-fundo: #FFE7EC;
+  --aviso: #E88A00;
+  --aviso-fundo: #FFF1D6;
+  --erro: #E23B4E;
+  --erro-fundo: #FFE3E6;
+  --info: #16ABC2;
+  --info-fundo: #DEFBFF;
+
+  /* ---------- Paleta categórica dos gráficos (Controle/Relatórios) ----------
+     8 matizes fixos, nunca ciclados (categoria/conta 9+ agrupa em "Outras").
+     Validada com a skill dataviz (scripts/validate_palette.js) contra a
+     superfície de verdade de cada tema — --superficie #FFFFFF (claro) e
+     #201A36 (escuro, ver bloco html[data-tema="escuro"] abaixo). Lida em
+     JS via getComputedStyle (Chart.js não entende var() direto), então
+     troca de tema em runtime dispara um re-render dos gráficos
+     (ver "tema-alterado" em js/tema.js). */
+  --grafico-1: #2A78D6;
+  --grafico-2: #EB6834;
+  --grafico-3: #1BAF7A;
+  --grafico-4: #EDA100;
+  --grafico-5: #E87BA4;
+  --grafico-6: #008300;
+  --grafico-7: #4A3AA7;
+  --grafico-8: #E34948;
+
+  /* fixas — não mudam entre temas */
+  --toast-fundo: #221C35;
+  --em-breve-listra: #F3EFFF;
+
+  /* ---------- Tipografia ---------- */
+  --fonte-display: "Space Grotesk", "Inter", system-ui, sans-serif;
   --fonte-corpo: "Inter", system-ui, sans-serif;
-  --fonte-mono: "IBM Plex Mono", "Courier New", monospace;
+  --fonte-mono: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
 
-  /* Layout */
-  --raio: 3px;
-  --sombra-cartao: 0 1px 2px rgba(22, 36, 29, 0.06), 0 4px 16px rgba(22, 36, 29, 0.05);
-  --transicao: 140ms ease;
-  --sidebar-largura: 224px;
-  --sidebar-largura-recolhida: 64px;
+  /* ---------- Forma ---------- */
+  --raio-sm: 10px;
+  --raio: 16px;
+  --raio-lg: 22px;
+  --raio-xl: 28px;
+  --raio-full: 999px;
+
+  --sombra-sm: 0 2px 10px rgba(98, 66, 224, 0.08);
+  --sombra: 0 10px 28px rgba(98, 66, 224, 0.12), 0 2px 6px rgba(34, 28, 53, 0.05);
+  --sombra-lg: 0 24px 56px rgba(98, 66, 224, 0.20);
+  --sombra-cartao: var(--sombra);
+
+  --transicao: 190ms cubic-bezier(.4, 0, .2, 1);
+  --transicao-suave: 420ms cubic-bezier(.16, 1, .3, 1);
+
+  --sidebar-largura: 244px;
+  --sidebar-largura-recolhida: 84px;
+}
+
+/* ============================================================
+   Tema escuro — sobrepõe as variáveis de cor. Ativado via
+   <html data-tema="escuro">, alternado por js/tema.js e persistido
+   em localStorage. Formas, espaçamento e tipografia não mudam —
+   só a paleta.
+   ============================================================ */
+html[data-tema="escuro"] {
+  --bg: #161029;
+  --bg-blob-1: #251B42;
+  --bg-blob-2: #2E1B33;
+  --superficie: #201A36;
+  --superficie-2: #251E3D;
+  --tinta: #F1EDFF;
+  --tinta-suave: #B0A6D6;
+  --tinta-fraca: #6F6591;
+  --linha: #352A54;
+  --linha-forte: #473A6E;
+
+  --marca: #9C84FF;
+  --marca-escura: #C4B3FF;
+  --marca-clara: #B49CFF;
+  --marca-suave: #2E2454;
+  --marca-gradiente: linear-gradient(150deg, #8A6BFF 0%, #6142E0 100%);
+
+  --receita: #34D399;
+  --receita-forte: #4ADE80;
+  --receita-fundo: rgba(52, 211, 153, 0.18);
+  --despesa: #FF7A90;
+  --despesa-forte: #FF8FA3;
+  --despesa-fundo: rgba(255, 93, 115, 0.18);
+  --aviso: #FFC15C;
+  --aviso-fundo: rgba(255, 182, 72, 0.18);
+  --erro: #FF6B7A;
+  --erro-fundo: rgba(255, 107, 122, 0.18);
+  --info: #4DD8EC;
+  --info-fundo: rgba(52, 209, 232, 0.18);
+
+  --grafico-1: #3987E5;
+  --grafico-2: #D95926;
+  --grafico-3: #199E70;
+  --grafico-4: #C98500;
+  --grafico-5: #D55181;
+  --grafico-6: #008300;
+  --grafico-7: #9085E9;
+  --grafico-8: #E66767;
+
+  --em-breve-listra: #2A2246;
+
+  --sombra-sm: 0 2px 10px rgba(0, 0, 0, 0.35);
+  --sombra: 0 10px 28px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --sombra-lg: 0 24px 56px rgba(0, 0, 0, 0.55);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root { --transicao: 0ms; }
-  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  :root { --transicao: 0ms; --transicao-suave: 0ms; }
+  /* animation-iteration-count: 1 é o que importa aqui — sem isso, uma
+     animação infinite (flutuar-blob no fundo do login, brilho-progresso
+     nas barras de plano) continuaria rodando pra sempre, só que a cada
+     0.001ms: não "sem movimento", e sim uma piscada/strobe constante —
+     pior pra quem tem sensibilidade a movimento do que não ter mexido
+     nisso.  */
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background: var(--papel);
+  background: var(--bg);
   color: var(--tinta);
   font-family: var(--fonte-corpo);
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.55;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color var(--transicao-suave), color var(--transicao-suave);
 }
 
 .oculto { display: none !important; }
@@ -71,24 +182,63 @@ button, input, select {
 }
 
 :focus-visible {
-  outline: 2px solid var(--dourado);
+  outline: 2px solid var(--marca);
   outline-offset: 2px;
+  border-radius: var(--raio-sm);
+}
+
+h1, h2, h3 { font-family: var(--fonte-display); }
+
+/* ---------- Animações compartilhadas ---------- */
+
+@keyframes entrar-subindo {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes entrar-suave {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pop-modal {
+  from { opacity: 0; transform: translateY(10px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes flutuar-blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-18px, 14px) scale(1.04); }
+}
+
+@keyframes brilho-progresso {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(220%); }
+}
+
+.app-shell,
+.tela-auth {
+  animation: entrar-suave var(--transicao-suave) both;
+}
+
+.app-shell__conteudo > .tela-app,
+.app-shell__conteudo > main {
+  animation: entrar-subindo var(--transicao-suave) both;
 }
 
 /* ---------- Estrutura da aplicação (sidebar + conteúdo) ---------- */
 
 .app-shell {
   display: flex;
-  align-items: stretch;
+  align-items: flex-start;
   min-height: 100vh;
+  gap: 0;
 }
 
 .app-shell__conteudo {
   flex: 1;
   min-width: 0;
-  background: var(--papel);
-  background-image: linear-gradient(var(--linha) 1px, transparent 1px);
-  background-size: 100% 2.2rem;
+  min-height: 100vh;
 }
 
 /* ---------- Sidebar ---------- */
@@ -96,15 +246,17 @@ button, input, select {
 .sidebar {
   width: var(--sidebar-largura);
   flex-shrink: 0;
-  background: var(--sidebar-fundo);
-  color: var(--sidebar-texto);
+  background: var(--marca-gradiente);
+  color: #E4DBFF;
   display: flex;
   flex-direction: column;
   position: sticky;
   top: 0;
   height: 100vh;
-  transition: width var(--transicao);
+  transition: width var(--transicao-suave);
   overflow-x: hidden;
+  border-radius: 0 var(--raio-xl) var(--raio-xl) 0;
+  box-shadow: var(--sombra-lg);
 }
 
 .sidebar--recolhida { width: var(--sidebar-largura-recolhida); }
@@ -113,133 +265,142 @@ button, input, select {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  padding: 1.1rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1.4rem 1.1rem 1.1rem;
+  transition: padding var(--transicao-suave), justify-content var(--transicao-suave);
+}
+
+.sidebar--recolhida .sidebar__topo {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .sidebar__toggle {
-  background: none;
+  background: rgba(255, 255, 255, 0.14);
   border: none;
-  color: var(--sidebar-texto);
-  font-size: 1.15rem;
+  color: #fff;
+  font-size: 1.05rem;
   line-height: 1;
   cursor: pointer;
-  padding: 0.3rem;
-  border-radius: var(--raio);
+  padding: 0.5rem;
+  width: 2.1rem;
+  height: 2.1rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--raio-full);
   flex-shrink: 0;
+  transition: background var(--transicao), transform var(--transicao);
 }
-.sidebar__toggle:hover { background: var(--sidebar-hover); }
+.sidebar__toggle:hover { background: rgba(255, 255, 255, 0.26); transform: rotate(90deg); }
 
 .sidebar__marca {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.6rem;
   overflow: hidden;
   white-space: nowrap;
 }
 
 .sidebar__selo {
-  width: 1.9rem;
-  height: 1.9rem;
+  width: 2.1rem;
+  height: 2.1rem;
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  background: var(--dourado);
-  color: var(--tinta);
+  background: #fff;
+  color: var(--marca-escura);
   font-family: var(--fonte-display);
   font-weight: 700;
-  border-radius: var(--raio);
-  font-size: 1rem;
+  border-radius: var(--raio-full);
+  font-size: 1.05rem;
 }
 
 .sidebar__nome {
   font-family: var(--fonte-display);
-  font-weight: 600;
-  font-size: 1.1rem;
-  color: var(--sidebar-texto-ativo);
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: #fff;
+  letter-spacing: -0.01em;
 }
 
-.sidebar--recolhida .sidebar__nome { display: none; }
+/* Retraída: some a marca inteira (selo + nome) — sobra só o botão de
+   alternar, centralizado. O selo sozinho não cabia nos 84px ao lado do
+   botão e vazava por baixo do overflow-x:hidden. */
+.sidebar--recolhida .sidebar__marca { display: none; }
 
 .sidebar__nav {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.85rem 0.6rem;
+  gap: 0.3rem;
+  padding: 0.6rem 0.85rem;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar__link {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem 0.65rem;
-  border-radius: var(--raio);
-  color: var(--sidebar-texto);
+  gap: 0.8rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--raio-full);
+  color: #E4DBFF;
   text-decoration: none;
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: 0.89rem;
   background: none;
   border: none;
   cursor: pointer;
   width: 100%;
   text-align: left;
   white-space: nowrap;
+  transition: background var(--transicao), color var(--transicao), transform var(--transicao);
 }
 
-.sidebar__link:hover { background: var(--sidebar-hover); color: var(--sidebar-texto-ativo); }
+.sidebar__link:hover { background: rgba(255, 255, 255, 0.14); color: #fff; transform: translateX(2px); }
 
 .sidebar__link.is-ativo {
-  background: var(--dourado);
-  color: var(--tinta);
+  background: #fff;
+  color: var(--marca-escura);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14);
 }
-
-.sidebar__link--desabilitado {
-  cursor: default;
-  opacity: 0.55;
-}
-.sidebar__link--desabilitado:hover { background: none; color: var(--sidebar-texto); }
+.sidebar__link.is-ativo:hover { transform: none; }
 
 .sidebar__icone {
   flex-shrink: 0;
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.2rem;
+  height: 1.2rem;
   display: grid;
   place-items: center;
 }
 .sidebar__icone svg { width: 100%; height: 100%; }
 
 .sidebar__label { overflow: hidden; text-overflow: ellipsis; }
-.sidebar--recolhida .sidebar__label,
-.sidebar--recolhida .sidebar__selo-em-breve { display: none; }
+.sidebar--recolhida .sidebar__label { display: none; }
 
-.sidebar__selo-em-breve {
-  margin-left: auto;
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 0.15rem 0.4rem;
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-
-.sidebar__rodape {
-  padding: 0.85rem 0.9rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-.sidebar--recolhida .sidebar__rodape .btn { padding: 0.5rem; }
-.sidebar--recolhida .sidebar__rodape .btn span.rotulo-completo { display: none; }
-
-/* ---------- Topo (dentro do conteúdo, sem sidebar) ---------- */
+/* ---------- Topo (cabeçalho de conteúdo) ---------- */
 
 .topo {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.1rem 1.75rem;
-  border-bottom: 1px solid var(--linha-forte);
+  padding: 1.6rem 2rem 0.4rem;
+}
+
+.topo:empty { padding: 0; }
+
+.topo__titulo {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.topo__subtitulo {
+  margin: 0.2rem 0 0;
+  font-size: 0.88rem;
+  color: var(--tinta-suave);
+  font-weight: 500;
 }
 
 .topo__marca {
@@ -249,23 +410,23 @@ button, input, select {
 }
 
 .topo__selo {
-  width: 2rem;
-  height: 2rem;
+  width: 2.1rem;
+  height: 2.1rem;
   display: grid;
   place-items: center;
-  background: var(--tinta);
-  color: var(--papel);
+  background: var(--marca-gradiente);
+  color: #fff;
   font-family: var(--fonte-display);
-  font-weight: 600;
-  border-radius: var(--raio);
+  font-weight: 700;
+  border-radius: var(--raio-full);
   font-size: 1.05rem;
 }
 
 .topo__nome {
   font-family: var(--fonte-display);
-  font-weight: 600;
-  font-size: 1.25rem;
-  letter-spacing: 0.01em;
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: -0.01em;
 }
 
 .topo__nav {
@@ -279,64 +440,294 @@ button, input, select {
   font-weight: 600;
   font-size: 0.9rem;
   text-decoration: none;
-  border-bottom: 2px solid transparent;
-  padding-bottom: 0.2rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--raio-full);
+  transition: background var(--transicao), color var(--transicao);
 }
-.topo__link:hover { color: var(--tinta); border-bottom-color: var(--dourado); }
-.topo__link.is-ativo { color: var(--tinta); border-bottom-color: var(--dourado); }
+.topo__link:hover { color: var(--marca-escura); background: var(--marca-suave); }
+
+/* ---------- Botão de tema (canto superior direito) ---------- */
+
+.topo__acoes {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.btn-icone-tema {
+  width: 2.6rem;
+  height: 2.6rem;
+  flex-shrink: 0;
+  border-radius: var(--raio-full);
+  border: 1.5px solid var(--linha-forte);
+  background: var(--superficie);
+  color: var(--tinta-suave);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: var(--sombra-sm);
+  transition: background var(--transicao), border-color var(--transicao), color var(--transicao), transform var(--transicao), box-shadow var(--transicao);
+}
+.btn-icone-tema:hover {
+  border-color: var(--marca-clara);
+  color: var(--marca-escura);
+  background: var(--marca-suave);
+  transform: translateY(-1px) rotate(14deg);
+  box-shadow: var(--sombra);
+}
+.btn-icone-tema:active { transform: scale(0.92); }
+
+.icone-tema { width: 1.2rem; height: 1.2rem; display: grid; place-items: center; }
+.icone-tema svg { width: 100%; height: 100%; }
+
+/* Por padrão (tema claro): mostra lua. No tema escuro, mostra sol.
+   Controlado só pelo atributo em <html>, então funciona em qualquer
+   canto da página. */
+.icone-tema--sol { display: none; }
+html[data-tema="escuro"] .icone-tema--lua { display: none; }
+html[data-tema="escuro"] .icone-tema--sol { display: grid; }
+
+/* ---------- Menu do usuário (canto superior direito) ---------- */
+
+.menu-usuario { position: relative; }
+
+.menu-usuario__botao {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.9rem 0.4rem 0.4rem;
+  border-radius: var(--raio-full);
+  border: 1.5px solid var(--linha-forte);
+  background: var(--superficie);
+  color: var(--tinta);
+  cursor: pointer;
+  box-shadow: var(--sombra-sm);
+  transition: border-color var(--transicao), background var(--transicao), box-shadow var(--transicao), transform var(--transicao);
+}
+.menu-usuario__botao:hover {
+  border-color: var(--marca-clara);
+  background: var(--marca-suave);
+  transform: translateY(-1px);
+  box-shadow: var(--sombra);
+}
+.menu-usuario__botao:active { transform: scale(0.97); }
+
+.menu-usuario__avatar {
+  width: 1.9rem;
+  height: 1.9rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--marca-gradiente);
+  color: #fff;
+  font-family: var(--fonte-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: var(--raio-full);
+}
+
+.menu-usuario__nome {
+  font-weight: 700;
+  font-size: 0.88rem;
+  max-width: 9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-usuario__seta {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex-shrink: 0;
+  color: var(--tinta-suave);
+  transition: transform var(--transicao);
+}
+.menu-usuario.is-aberto .menu-usuario__seta { transform: rotate(180deg); }
+
+.menu-usuario__dropdown {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  right: 0;
+  min-width: 200px;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-lg);
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  z-index: 20;
+  animation: pop-modal var(--transicao) both;
+}
+
+.menu-usuario__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: none;
+  background: transparent;
+  border-radius: var(--raio-sm);
+  color: var(--tinta);
+  font-weight: 600;
+  font-size: 0.88rem;
+  font-family: var(--fonte-corpo);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transicao), color var(--transicao);
+}
+.menu-usuario__item:hover { background: var(--marca-suave); color: var(--marca-escura); }
+.menu-usuario__item--sair:hover { background: var(--erro-fundo); color: var(--erro); }
+
+.menu-usuario__item-icone { width: 1.1rem; height: 1.1rem; flex-shrink: 0; display: grid; place-items: center; }
+.menu-usuario__item-icone svg { width: 100%; height: 100%; }
+
+.menu-usuario__divisor { border: none; border-top: 1px solid var(--linha); margin: 0.3rem 0.2rem; }
 
 /* ---------- Botões ---------- */
 
 .btn {
-  font-weight: 600;
-  padding: 0.65rem 1.2rem;
-  border-radius: var(--raio);
+  font-weight: 700;
+  font-family: var(--fonte-corpo);
+  padding: 0.7rem 1.35rem;
+  border-radius: var(--raio-full);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: background var(--transicao), border-color var(--transicao), color var(--transicao);
+  transition: background var(--transicao), border-color var(--transicao), color var(--transicao), transform var(--transicao), box-shadow var(--transicao);
 }
+.btn:active { transform: scale(0.97); }
 
 .btn--principal {
-  background: var(--tinta);
-  color: var(--papel);
+  background: var(--marca-gradiente-botao);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(195, 97, 242, 0.38);
 }
-.btn--principal:hover { background: #24382c; }
+.btn--principal:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(195, 97, 242, 0.46); }
 
 .btn--secundario {
-  background: transparent;
-  border-color: var(--tinta);
-  color: var(--tinta);
+  background: var(--secundario-gradiente);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(23, 137, 160, 0.32);
 }
-.btn--secundario:hover { background: rgba(22, 36, 29, 0.06); }
+.btn--secundario:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(23, 137, 160, 0.4); }
 
 .btn--fantasma {
   background: transparent;
   color: var(--tinta-suave);
   border-color: var(--linha-forte);
 }
-.btn--fantasma:hover { border-color: var(--tinta); color: var(--tinta); }
+.btn--fantasma:hover { border-color: var(--marca); color: var(--marca-escura); background: var(--marca-suave); }
 
-.sidebar .btn--fantasma {
-  color: var(--sidebar-texto);
-  border-color: rgba(255, 255, 255, 0.18);
-  width: 100%;
+/* Ação destrutiva (confirmar apagar) — cor semântica de despesa em vez do
+   gradiente de marca padrão, pra sinalizar "isso não tem volta". */
+.btn--perigo {
+  background: var(--despesa);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(240, 67, 92, 0.35);
 }
-.sidebar .btn--fantasma:hover { color: var(--sidebar-texto-ativo); border-color: rgba(255, 255, 255, 0.4); }
+.btn--perigo:hover { background: var(--despesa-forte); transform: translateY(-1px); box-shadow: 0 10px 24px rgba(240, 67, 92, 0.42); }
 
-.btn--pequeno { padding: 0.45rem 0.85rem; font-size: 0.85rem; }
+.btn--pequeno { padding: 0.48rem 0.95rem; font-size: 0.85rem; }
 
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; }
 
+/* Âncoras e botões de ação secundária com cara de botão (pílula colorida)
+   em vez de link sublinhado — usado em "+ nova categoria", "Filtros",
+   "Gerenciar contas →" etc. */
 .link-acao {
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--marca-suave);
   border: none;
-  padding: 0;
-  color: var(--dourado);
-  font-weight: 600;
-  font-size: 0.85rem;
+  padding: 0.42rem 0.9rem;
+  border-radius: var(--raio-full);
+  color: var(--marca-escura);
+  font-weight: 700;
+  font-size: 0.82rem;
   cursor: pointer;
-  text-decoration: underline;
+  text-decoration: none;
+  transition: background var(--transicao), color var(--transicao), transform var(--transicao), box-shadow var(--transicao);
+}
+.link-acao:hover {
+  background: var(--marca-gradiente-botao);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(195, 97, 242, 0.35);
+}
+
+/* .link-acao sozinho (sem modificador) = "criar" — abre um formulário
+   novo (modal ou inline), pílula preenchida da marca. As variantes abaixo
+   dão uma cara diferente pras outras 4 famílias de ação que reaproveitavam
+   a mesma pílula sem nada diferenciar visualmente uma navegação de um
+   "isso grava uma movimentação de verdade". */
+
+/* Navegação — sai da página atual. Sem preenchimento: um link com peso
+   visual menor que um botão de ação, pra não competir com o que a página
+   atual realmente oferece pra fazer. */
+.link-acao--navegacao {
+  background: none;
+  padding: 0.2rem 0;
+  color: var(--marca-escura);
   text-underline-offset: 3px;
+}
+.link-acao--navegacao:hover {
+  background: none;
+  color: var(--marca);
+  text-decoration: underline;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Alternar — expande/recolhe algo na própria página (Filtros, + nova
+   categoria). Contorno neutro em vez de preenchido: não é uma ação nova,
+   é revelar o que já estava aqui. */
+.link-acao--alternar {
+  background: var(--superficie-2);
+  border: 1.5px solid var(--linha-forte);
+  color: var(--tinta-suave);
+}
+.link-acao--alternar:hover {
+  background: var(--marca-suave);
+  border-color: var(--marca-clara);
+  color: var(--marca-escura);
+  box-shadow: none;
+}
+
+/* Dispensar — fechar/descartar. A ação de menor peso de todas. */
+.link-acao--dispensar {
+  background: none;
+  color: var(--tinta-fraca);
+  padding: 0.2rem 0;
+}
+.link-acao--dispensar:hover {
+  background: none;
+  color: var(--tinta-suave);
+  text-decoration: underline;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Financeira — a única família que efetivamente grava uma Movimentação
+   (marcar pendência/parcela como paga, registrar pagamento de dívida).
+   Cor semântica de receita (dinheiro entrando na conta) + ícone de check,
+   pra ficar claro que isso não é "só navegar". */
+.link-acao--financeira {
+  background: var(--receita-fundo);
+  color: var(--receita-forte);
+}
+.link-acao--financeira::before {
+  content: "✓";
+  font-weight: 800;
+}
+.link-acao--financeira:hover {
+  background: var(--receita);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(16, 166, 110, 0.35);
 }
 
 /* ---------- Auth ---------- */
@@ -346,84 +737,145 @@ button, input, select {
   display: grid;
   place-items: center;
   padding: 2rem 1rem;
-  background: var(--papel);
-  background-image: linear-gradient(var(--linha) 1px, transparent 1px);
-  background-size: 100% 2.2rem;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.tela-auth::before,
+.tela-auth::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(10px);
+  z-index: 0;
+  animation: flutuar-blob 14s ease-in-out infinite;
+}
+.tela-auth::before {
+  width: 420px; height: 420px;
+  background: var(--bg-blob-1);
+  top: -140px; left: -120px;
+}
+.tela-auth::after {
+  width: 380px; height: 380px;
+  background: var(--bg-blob-2);
+  bottom: -160px; right: -100px;
+  animation-delay: -6s;
 }
 
 .cartao-auth {
+  position: relative;
+  z-index: 1;
   width: 100%;
-  max-width: 380px;
-  background: var(--papel-cartao);
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio);
-  box-shadow: var(--sombra-cartao);
-  padding: 1.75rem;
+  max-width: 400px;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-xl);
+  box-shadow: var(--sombra-lg);
+  padding: 2.1rem 2rem;
 }
 
-.cartao-auth__abas {
+/* ---------- Abas (componente compartilhado — login/cadastro E Relatórios,
+   antes duas declarações idênticas sob nomes diferentes) ---------- */
+
+.abas {
   display: flex;
-  gap: 0.25rem;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid var(--linha);
+  gap: 0.3rem;
+  background: var(--superficie-2);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-full);
+  padding: 0.3rem;
 }
 
 .aba {
   flex: 1;
   background: none;
   border: none;
-  padding: 0.6rem 0;
+  padding: 0.55rem 1.05rem;
   font-family: var(--fonte-display);
-  font-size: 1rem;
+  font-weight: 600;
+  font-size: 0.92rem;
   color: var(--tinta-suave);
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  border-radius: var(--raio-full);
+  transition: background var(--transicao), color var(--transicao);
 }
+.aba:hover { color: var(--marca-escura); }
 
 .aba.is-ativa {
-  color: var(--tinta);
-  border-bottom-color: var(--dourado);
+  color: #fff;
+  background: var(--marca-gradiente);
+  box-shadow: 0 4px 12px rgba(124, 92, 252, 0.35);
 }
+
+/* Auth: fica dentro do cartão, sem largura própria, com respiro embaixo. */
+.cartao-auth__abas { margin-bottom: 1.6rem; }
+
+/* Relatórios: abas de largura de conteúdo (não esticam pra preencher),
+   centralizadas, com sombra própria — flutuando acima do painel. */
+.abas--conteudo {
+  width: fit-content;
+  max-width: 1180px;
+  margin: 0 auto 1.4rem;
+  box-shadow: var(--sombra-sm);
+}
+.abas--conteudo .aba { flex: none; }
 
 /* ---------- Formulários ---------- */
 
-.formulario { display: flex; flex-direction: column; gap: 0.9rem; }
+.formulario { display: flex; flex-direction: column; gap: 1rem; }
 
-.campo { display: flex; flex-direction: column; gap: 0.35rem; }
+.campo { display: flex; flex-direction: column; gap: 0.4rem; }
 
 .campo span {
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: 0.76rem;
+  font-weight: 700;
   color: var(--tinta-suave);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.045em;
 }
 
 .campo input, .campo select {
-  padding: 0.6rem 0.7rem;
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio);
-  background: var(--papel-cartao);
+  padding: 0.68rem 0.85rem;
+  border: 1.5px solid var(--linha-forte);
+  border-radius: var(--raio-sm);
+  background: var(--superficie-2);
   color: var(--tinta);
+  transition: border-color var(--transicao), background var(--transicao), box-shadow var(--transicao);
 }
 
 .campo input:focus, .campo select:focus {
-  border-color: var(--dourado);
+  border-color: var(--marca);
+  background: var(--superficie);
+  box-shadow: 0 0 0 4px var(--marca-suave);
+  outline: none;
 }
 
 .campo--compacto { min-width: 130px; }
 
+/* Campo "travado" (ex.: email no formulário de perfil) — mesma forma de
+   .campo input, mas sem borda de foco/hover, deixando claro que não é
+   editável em vez de parecer um input quebrado. */
+.campo-somente-leitura {
+  padding: 0.68rem 0.85rem;
+  border: 1.5px dashed var(--linha-forte);
+  border-radius: var(--raio-sm);
+  background: var(--superficie-2);
+  color: var(--tinta-suave);
+  font-weight: 600;
+}
+
 .erro-formulario {
   display: none;
   margin: 0;
-  padding: 0.6rem 0.8rem;
+  padding: 0.7rem 0.9rem;
   background: var(--erro-fundo);
   color: var(--erro);
-  border-radius: var(--raio);
+  border-radius: var(--raio-sm);
   font-size: 0.85rem;
+  font-weight: 600;
 }
-.erro-formulario.is-visivel { display: block; }
+.erro-formulario.is-visivel { display: block; animation: entrar-subindo var(--transicao) both; }
 
 .campo-grupo-tipo {
   display: flex;
@@ -436,35 +888,40 @@ button, input, select {
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  padding: 0.55rem;
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio);
+  padding: 0.6rem;
+  border: 1.5px solid var(--linha-forte);
+  border-radius: var(--raio-sm);
   cursor: pointer;
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--tinta-suave);
+  transition: border-color var(--transicao), background var(--transicao), color var(--transicao);
 }
+.opcao-tipo input { position: absolute; opacity: 0; width: 0; height: 0; }
 
 .opcao-tipo:has(input:checked) {
-  border-color: var(--tinta);
-  background: rgba(22, 36, 29, 0.05);
+  border-color: var(--marca);
+  background: var(--marca-suave);
+  color: var(--marca-escura);
 }
 
 .bloco-nova-categoria {
   display: flex;
   gap: 0.6rem;
   align-items: flex-end;
-  padding: 0.75rem;
-  background: var(--dourado-fundo);
+  padding: 0.85rem;
+  background: var(--aviso-fundo);
   border-radius: var(--raio);
+  animation: entrar-subindo var(--transicao) both;
 }
 .bloco-nova-categoria .campo { flex: 1; }
 
-/* ---------- App / Dashboard ---------- */
+/* ---------- App / conteúdo ---------- */
 
 .tela-app {
-  max-width: 1100px;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 1.75rem;
+  padding: 1.25rem 2rem 2.5rem;
 }
 
 .resumo {
@@ -475,79 +932,94 @@ button, input, select {
 }
 
 .resumo__item {
-  background: var(--papel-cartao);
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio);
-  padding: 1.1rem 1.3rem;
-  box-shadow: var(--sombra-cartao);
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-lg);
+  padding: 1.2rem 1.4rem;
+  box-shadow: var(--sombra-sm);
+  transition: transform var(--transicao), box-shadow var(--transicao);
 }
+.resumo__item:hover { transform: translateY(-2px); box-shadow: var(--sombra); }
 
 .resumo__rotulo {
   display: block;
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: 0.76rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--tinta-suave);
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.5rem;
 }
 
 .resumo__valor {
   display: block;
   font-family: var(--fonte-mono);
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.55rem;
+  font-weight: 700;
 }
 
-.valor--receita { color: var(--receita); }
-.valor--despesa { color: var(--despesa); }
+.valor--receita { color: var(--receita-forte); }
+.valor--despesa { color: var(--despesa-forte); }
 
 .resumo__item--saldo {
-  border-color: var(--tinta);
+  border-color: var(--marca-clara);
+  background: var(--marca-suave);
 }
 
 .resumo__valor--saldo {
-  padding-bottom: 0.35rem;
-  border-bottom: 3px double var(--tinta);
+  position: relative;
   display: inline-block;
 }
+.resumo__valor--saldo::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -6px;
+  height: 3px;
+  border-radius: var(--raio-full);
+  background: var(--marca);
+}
 
-/* ---------- Grid Início (Pendências / Contas / Nova Movimentação / Upload) ----------
-   Duas "linhas" empilhadas em vez de um grid único de 4 colunas: a linha de
-   baixo precisa dar ao form de Nova Movimentação a mesma largura fixa que
-   ele já tinha antes (quando ficava sozinho, fora do grid) — um span
-   proporcional (ex: 3 de 4 colunas) deixaria o form esticado igual o
-   Histórico ficava (que já saiu daqui, foi para Controle). */
+/* ---------- Grid Início ---------- */
 
 .grid-inicio {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.1rem;
   margin-bottom: 1.75rem;
 }
 
 .grid-inicio__linha {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  align-items: start;
+  gap: 1.1rem;
+  align-items: stretch;
 }
 
-.grid-inicio__linha--form {
-  grid-template-columns: 480px 1fr;
+/* Todos os cards do Início têm a mesma altura (podem variar de largura),
+   com a lista interna rolando se sobrar conteúdo — em vez do card
+   inteiro esticar. */
+.grid-inicio__linha > .painel,
+.grid-inicio__linha > .cartao-em-breve {
+  display: flex;
+  flex-direction: column;
+  min-height: 22rem;
 }
 
-/* ---------- Placeholders "em breve" (Pendências, Upload) ---------- */
+.grid-inicio__linha > .painel > .link-acao {
+  margin-top: auto;
+  align-self: flex-start;
+}
+
+/* ---------- Placeholders "em breve" ---------- */
 
 .cartao-em-breve {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  background: var(--papel-cartao);
-  border: 1px dashed var(--linha-forte);
-  border-radius: var(--raio);
-  padding: 1.3rem;
-  opacity: 0.75;
+  background: repeating-linear-gradient(135deg, var(--superficie-2), var(--superficie-2) 10px, var(--em-breve-listra) 10px, var(--em-breve-listra) 20px);
+  border: 1.5px dashed var(--linha-forte);
+  border-radius: var(--raio-lg);
+  padding: 1.4rem;
 }
 
 .cartao-em-breve__cabecalho {
@@ -559,9 +1031,9 @@ button, input, select {
 .cartao-em-breve__titulo { margin: 0; font-size: 1rem; flex: 1; }
 
 .cartao-em-breve__icone {
-  width: 1.2rem;
-  height: 1.2rem;
-  color: var(--tinta-suave);
+  width: 1.3rem;
+  height: 1.3rem;
+  color: var(--marca);
   flex-shrink: 0;
 }
 .cartao-em-breve__icone svg { width: 100%; height: 100%; }
@@ -574,24 +1046,111 @@ button, input, select {
 
 .selo-em-breve {
   font-size: 0.62rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  background: var(--linha);
-  color: var(--tinta-suave);
-  padding: 0.2rem 0.5rem;
-  border-radius: 999px;
+  background: var(--marca-suave);
+  color: var(--marca-escura);
+  padding: 0.22rem 0.55rem;
+  border-radius: var(--raio-full);
   flex-shrink: 0;
   white-space: nowrap;
 }
 
-/* ---------- Card de saldo por conta (compacto, só leitura, no grid do Início) ---------- */
+/* ---------- Ações rápidas (Receita / Despesa) — Início ---------- */
+
+.acoes-rapidas {
+  display: flex;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.btn-rapido {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: var(--raio);
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #fff;
+  cursor: pointer;
+  transition: transform var(--transicao), box-shadow var(--transicao), filter var(--transicao);
+}
+.btn-rapido:hover { transform: translateY(-2px); filter: brightness(1.06); }
+.btn-rapido:active { transform: scale(0.97); }
+
+.btn-rapido__icone { width: 1.15rem; height: 1.15rem; flex-shrink: 0; display: grid; place-items: center; }
+.btn-rapido__icone svg { width: 100%; height: 100%; }
+
+.btn-rapido--receita {
+  background: linear-gradient(135deg, #1FD1A0 0%, #0C8F5E 100%);
+  box-shadow: 0 6px 16px rgba(16, 166, 110, 0.35);
+}
+.btn-rapido--despesa {
+  background: linear-gradient(135deg, #FF7A6E 0%, #D62B46 100%);
+  box-shadow: 0 6px 16px rgba(240, 67, 92, 0.35);
+}
+
+/* ---------- Card de lançamentos recentes (Início) ---------- */
+
+.lista-lancamentos-inicio {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.lancamento-inicio__item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.85rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--superficie-2);
+  border-radius: var(--raio-sm);
+}
+
+.lancamento-inicio__data {
+  color: var(--tinta-suave);
+  font-family: var(--fonte-mono);
+  font-size: 0.76rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lancamento-inicio__desc {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lancamento-inicio__valor {
+  font-family: var(--fonte-mono);
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ---------- Card de saldo por conta (Início) ---------- */
 
 .resumo-contas-inicio {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  margin-bottom: 0.85rem;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .resumo-contas-inicio__item {
@@ -599,11 +1158,15 @@ button, input, select {
   align-items: baseline;
   justify-content: space-between;
   gap: 0.6rem;
-  font-size: 0.85rem;
+  font-size: 0.87rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--superficie-2);
+  border-radius: var(--raio-sm);
 }
 
 .resumo-contas-inicio__nome {
   color: var(--tinta-suave);
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -611,30 +1174,37 @@ button, input, select {
 
 .resumo-contas-inicio__saldo {
   font-family: var(--fonte-mono);
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
 }
 
-/* ---------- Card de pendências (compacto, só leitura, no grid do Início) ---------- */
+/* ---------- Card de pendências (Início) ---------- */
 
 .resumo-pendencias-inicio {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  margin-bottom: 0.85rem;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .resumo-pendencias-inicio__item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
   font-size: 0.85rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--superficie-2);
+  border-radius: var(--raio-sm);
 }
 
 .resumo-pendencias-inicio__desc {
   flex: 1;
   min-width: 0;
-  color: var(--tinta-suave);
+  color: var(--tinta);
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -642,71 +1212,126 @@ button, input, select {
 
 .resumo-pendencias-inicio__valor {
   font-family: var(--fonte-mono);
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
 }
 
 .resumo-pendencias-inicio__mais {
+  display: block;
   font-size: 0.78rem;
+  font-weight: 600;
   color: var(--tinta-suave);
-  font-style: italic;
+  margin: 0.2rem 0 0;
+  text-decoration: none;
+  transition: color var(--transicao);
 }
+.resumo-pendencias-inicio__mais:hover { color: var(--marca-escura); text-decoration: underline; }
+
+/* ---------- Painel base ---------- */
+
+.painel {
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-sm);
+  padding: 1.5rem;
+  transition: box-shadow var(--transicao);
+}
+
+.painel__titulo {
+  font-family: var(--fonte-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 1.1rem;
+  letter-spacing: -0.01em;
+}
+
+.painel__cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.1rem;
+  gap: 0.75rem;
+}
+.painel__cabecalho .painel__titulo { margin: 0; }
+
+.painel__acoes { display: flex; gap: 1rem; align-items: center; }
+
+/* ---------- Listas de cartões (Pendências / Planos / Contas) ----------
+   Entrada em cascata: cada item ganha um pequeno atraso via nth-child,
+   então toda vez que a lista é re-renderizada (filtro, criação, edição)
+   os cartões sobem suavemente em sequência. */
+
+.lista-pendencias > *, .lista-planos > *, .lista-contas > * {
+  animation: entrar-subindo var(--transicao-suave) both;
+}
+.lista-pendencias > :nth-child(1), .lista-planos > :nth-child(1), .lista-contas > :nth-child(1) { animation-delay: 0ms; }
+.lista-pendencias > :nth-child(2), .lista-planos > :nth-child(2), .lista-contas > :nth-child(2) { animation-delay: 45ms; }
+.lista-pendencias > :nth-child(3), .lista-planos > :nth-child(3), .lista-contas > :nth-child(3) { animation-delay: 90ms; }
+.lista-pendencias > :nth-child(4), .lista-planos > :nth-child(4), .lista-contas > :nth-child(4) { animation-delay: 135ms; }
+.lista-pendencias > :nth-child(n+5), .lista-planos > :nth-child(n+5), .lista-contas > :nth-child(n+5) { animation-delay: 180ms; }
 
 /* ---------- Pendências (página dedicada) ---------- */
 
 .lista-pendencias {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.85rem;
 }
 
 .cartao-pendencia {
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio);
-  background: var(--papel-cartao);
-  padding: 0.9rem 1rem;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-lg);
+  background: var(--superficie);
+  padding: 1.05rem 1.2rem;
+  box-shadow: var(--sombra-sm);
+  transition: box-shadow var(--transicao), transform var(--transicao);
 }
+.cartao-pendencia:hover { box-shadow: var(--sombra); transform: translateY(-2px); }
 
-.cartao-pendencia--pausada { opacity: 0.6; }
+.cartao-pendencia--pausada { opacity: 0.55; }
+.cartao-pendencia--pausada:hover { transform: none; }
 
 .cartao-pendencia__cabecalho {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.85rem;
 }
 
-.cartao-pendencia__info { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; min-width: 160px; }
-.cartao-pendencia__descricao { font-weight: 600; }
-.cartao-pendencia__meta { font-size: 0.78rem; color: var(--tinta-suave); }
+.cartao-pendencia__info { display: flex; flex-direction: column; gap: 0.2rem; flex: 1; min-width: 160px; }
+.cartao-pendencia__descricao { font-weight: 700; font-family: var(--fonte-display); }
+.cartao-pendencia__meta { font-size: 0.78rem; color: var(--tinta-suave); font-weight: 600; }
 
 .cartao-pendencia__valor {
   font-family: var(--fonte-mono);
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
+  font-size: 1.05rem;
 }
 
-.cartao-pendencia__acoes { display: flex; gap: 0.6rem; }
+.cartao-pendencia__acoes { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .cartao-pendencia__acoes button {
-  background: none;
-  border: none;
+  background: var(--superficie-2);
+  border: 1px solid var(--linha);
   cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 600;
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--raio-full);
+  font-size: 0.78rem;
+  font-weight: 700;
   color: var(--tinta-suave);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  transition: background var(--transicao), color var(--transicao), border-color var(--transicao);
 }
-.cartao-pendencia__acoes button:hover { color: var(--tinta); }
-.cartao-pendencia__acoes .btn-apagar-pendencia:hover { color: var(--despesa); }
+.cartao-pendencia__acoes button:hover { color: var(--marca-escura); border-color: var(--marca-clara); background: var(--marca-suave); }
+.cartao-pendencia__acoes .btn-apagar-pendencia:hover { color: var(--despesa-forte); border-color: var(--despesa); background: var(--despesa-fundo); }
 
 .lista-ciclos {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--linha);
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed var(--linha-forte);
 }
 
 .ciclo-pendencia {
@@ -717,15 +1342,139 @@ button, input, select {
   font-size: 0.85rem;
 }
 
+/* ---------- Planos e Metas (página dedicada) ---------- */
+
+.lista-planos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.cartao-plano {
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-lg);
+  background: var(--superficie);
+  padding: 1.05rem 1.2rem;
+  box-shadow: var(--sombra-sm);
+  transition: box-shadow var(--transicao), transform var(--transicao);
+}
+.cartao-plano:hover { box-shadow: var(--sombra); transform: translateY(-2px); }
+
+.cartao-plano--pausado { opacity: 0.55; }
+.cartao-plano--pausado:hover { transform: none; }
+
+.cartao-plano__cabecalho {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.cartao-plano__info { display: flex; flex-direction: column; gap: 0.2rem; flex: 1; min-width: 160px; }
+.cartao-plano__nome { font-weight: 700; font-family: var(--fonte-display); }
+.cartao-plano__meta { font-size: 0.78rem; color: var(--tinta-suave); font-weight: 600; }
+
+.cartao-plano__acoes { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.cartao-plano__acoes button {
+  background: var(--superficie-2);
+  border: 1px solid var(--linha);
+  cursor: pointer;
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--raio-full);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--tinta-suave);
+  transition: background var(--transicao), color var(--transicao), border-color var(--transicao);
+}
+.cartao-plano__acoes button:hover { color: var(--marca-escura); border-color: var(--marca-clara); background: var(--marca-suave); }
+.cartao-plano__acoes .btn-apagar-plano:hover { color: var(--despesa-forte); border-color: var(--despesa); background: var(--despesa-fundo); }
+
+.cartao-plano__progresso {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px dashed var(--linha-forte);
+}
+
+.barra-progresso {
+  height: 0.65rem;
+  background: var(--linha);
+  border-radius: var(--raio-full);
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+  position: relative;
+}
+
+.barra-progresso__preenchimento {
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+  background: linear-gradient(90deg, var(--marca-clara), var(--receita));
+  border-radius: var(--raio-full);
+  transition: transform var(--transicao-suave);
+  position: relative;
+  overflow: hidden;
+}
+.barra-progresso__preenchimento::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: brilho-progresso 2.6s ease-in-out infinite;
+}
+
+.barra-progresso__texto {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--tinta-suave);
+  font-weight: 600;
+}
+.barra-progresso__texto strong { color: var(--tinta); font-family: var(--fonte-mono); }
+
+.checklist-mensal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.checklist-mensal__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--superficie-2);
+  border-radius: var(--raio-sm);
+}
+
+.checklist-mensal__marca {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.checklist-mensal__marca--ok { background: var(--receita-fundo); color: var(--receita-forte); }
+.checklist-mensal__marca--falhou { background: var(--despesa-fundo); color: var(--despesa-forte); }
+
+.checklist-mensal__mes { flex: 1; min-width: 0; font-weight: 600; }
+.checklist-mensal__detalhe { color: var(--tinta-suave); font-family: var(--fonte-mono); white-space: nowrap; font-size: 0.78rem; }
+
 /* ---------- Contas bancárias ---------- */
 
 .painel--contas { margin-bottom: 1.75rem; }
-.painel--contas .painel__cabecalho { margin-bottom: 0.85rem; }
+.painel--contas .painel__cabecalho { margin-bottom: 0.95rem; }
 
 .lista-contas {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.65rem;
   margin-bottom: 1rem;
 }
 
@@ -733,74 +1482,55 @@ button, input, select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio);
-  background: var(--papel-cartao);
+  gap: 0.85rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-lg);
+  background: var(--superficie);
+  box-shadow: var(--sombra-sm);
+  transition: box-shadow var(--transicao), transform var(--transicao);
 }
+.cartao-conta:hover { box-shadow: var(--sombra); transform: translateY(-2px); }
 
 .cartao-conta__info { display: flex; flex-direction: column; gap: 0.15rem; }
-.cartao-conta__banco { font-weight: 600; }
-.cartao-conta__apelido { font-size: 0.78rem; color: var(--tinta-suave); }
+.cartao-conta__banco { font-weight: 700; font-family: var(--fonte-display); }
+.cartao-conta__apelido { font-size: 0.78rem; color: var(--tinta-suave); font-weight: 600; }
 
 .cartao-conta__saldo {
   font-family: var(--fonte-mono);
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
+  font-size: 1.05rem;
 }
 
-.cartao-conta__acoes { display: flex; gap: 0.4rem; }
+.cartao-conta__acoes { display: flex; gap: 0.5rem; }
 .cartao-conta__acoes button {
-  background: none;
-  border: none;
+  background: var(--superficie-2);
+  border: 1px solid var(--linha);
   cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 600;
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--raio-full);
+  font-size: 0.78rem;
+  font-weight: 700;
   color: var(--tinta-suave);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  transition: background var(--transicao), color var(--transicao), border-color var(--transicao);
 }
-.cartao-conta__acoes button:hover { color: var(--tinta); }
-.cartao-conta__acoes .btn-apagar-conta:hover { color: var(--despesa); }
-
-.painel {
-  background: var(--papel-cartao);
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio);
-  box-shadow: var(--sombra-cartao);
-  padding: 1.3rem;
-}
-
-.painel__titulo {
-  font-family: var(--fonte-display);
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 0 0 1rem;
-}
-
-.painel__cabecalho {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-.painel__cabecalho .painel__titulo { margin: 0; }
-
-.painel__acoes { display: flex; gap: 0.9rem; }
+.cartao-conta__acoes button:hover { color: var(--marca-escura); border-color: var(--marca-clara); background: var(--marca-suave); }
+.cartao-conta__acoes .btn-apagar-conta:hover { color: var(--despesa-forte); border-color: var(--despesa); background: var(--despesa-fundo); }
 
 /* ---------- Filtros ---------- */
 
 .bloco-filtros {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  background: var(--papel);
+  gap: 0.85rem;
+  padding: 1.1rem;
+  margin-bottom: 1.1rem;
+  background: var(--superficie-2);
   border: 1px solid var(--linha);
   border-radius: var(--raio);
   align-items: flex-end;
+  animation: entrar-subindo var(--transicao) both;
 }
 
 .bloco-filtros__acoes {
@@ -814,101 +1544,132 @@ button, input, select {
 
 .tabela-historico {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.9rem;
 }
 
 .tabela-historico th {
   text-align: left;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--tinta-suave);
-  padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid var(--linha-forte);
+  font-weight: 700;
+  padding: 0 0.7rem 0.65rem;
 }
 
 .tabela-historico td {
-  padding: 0.65rem 0.6rem;
-  border-bottom: 1px solid var(--linha);
+  padding: 0.8rem 0.7rem;
   vertical-align: middle;
+  background: var(--superficie-2);
+  border-top: 4px solid var(--superficie);
+  border-bottom: 4px solid var(--superficie);
 }
+.tabela-historico td:first-child { border-radius: var(--raio-sm) 0 0 var(--raio-sm); }
+.tabela-historico td:last-child { border-radius: 0 var(--raio-sm) var(--raio-sm) 0; }
 
-.tabela-historico tbody tr:hover { background: rgba(22, 36, 29, 0.03); }
+.tabela-historico tbody tr { transition: background var(--transicao); }
+.tabela-historico tbody tr:hover td { background: var(--marca-suave); }
 
 .alinhar-direita { text-align: right; }
 
 .celula-valor {
   font-family: var(--fonte-mono);
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
 }
 
 .etiqueta-categoria {
   display: inline-block;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  background: var(--linha);
+  padding: 0.22rem 0.65rem;
+  border-radius: var(--raio-full);
+  font-size: 0.76rem;
+  font-weight: 700;
+  background: var(--marca-suave);
+  color: var(--marca-escura);
 }
 
 .etiqueta-conta {
   display: inline-block;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  background: var(--dourado-fundo);
-  color: var(--tinta);
+  padding: 0.22rem 0.65rem;
+  border-radius: var(--raio-full);
+  font-size: 0.76rem;
+  font-weight: 700;
+  background: var(--info-fundo);
+  color: var(--info);
 }
 
 .etiqueta-atrasada,
-.etiqueta-a-vencer {
+.etiqueta-a-vencer,
+.etiqueta-tipo-receita,
+.etiqueta-tipo-despesa {
   display: inline-block;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 600;
+  padding: 0.22rem 0.65rem;
+  border-radius: var(--raio-full);
+  font-size: 0.76rem;
+  font-weight: 700;
   white-space: nowrap;
 }
 .etiqueta-atrasada { background: var(--erro-fundo); color: var(--erro); }
-.etiqueta-a-vencer { background: var(--dourado-fundo); color: var(--dourado); }
+.etiqueta-a-vencer { background: var(--aviso-fundo); color: var(--aviso); }
+/* Mesma forma da etiqueta de vencimento, só a cor muda — receita/despesa
+   da pendência, ao lado esquerdo da etiqueta de data no card do Início. */
+.etiqueta-tipo-receita { background: var(--receita-fundo); color: var(--receita-forte); }
+.etiqueta-tipo-despesa { background: var(--despesa-fundo); color: var(--despesa-forte); }
 
-.acoes-linha { display: flex; gap: 0.5rem; justify-content: flex-end; }
+.acoes-linha { display: flex; gap: 0.4rem; justify-content: flex-end; }
 .acoes-linha button {
-  background: none;
-  border: none;
-  padding: 0.2rem 0.3rem;
+  background: var(--superficie);
+  border: 1px solid var(--linha-forte);
+  padding: 0.3rem 0.7rem;
   cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 700;
   color: var(--tinta-suave);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  border-radius: var(--raio-full);
+  transition: background var(--transicao), color var(--transicao), border-color var(--transicao);
 }
-.acoes-linha button:hover { color: var(--tinta); }
-.acoes-linha .btn-apagar:hover { color: var(--despesa); }
+.acoes-linha button:hover { color: var(--marca-escura); border-color: var(--marca-clara); background: var(--marca-suave); }
+.acoes-linha .btn-apagar:hover { color: var(--despesa-forte); border-color: var(--despesa); background: var(--despesa-fundo); }
 
 .estado-vazio {
   text-align: center;
   color: var(--tinta-suave);
-  padding: 2rem 1rem;
-  font-style: italic;
+  padding: 2.5rem 1rem;
   font-family: var(--fonte-display);
+  font-weight: 600;
 }
 
-/* ---------- Controle: Histórico + gráfico de categoria lado a lado ---------- */
+/* ---------- Controle: fila de 3 gráficos, com o de balanço mensal
+   maior/em destaque ---------- */
 
-.linha-controle {
+.grade-graficos-controle {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: 1.8fr 1fr 1fr;
   gap: 1.25rem;
-  align-items: start;
-  margin-bottom: 1.5rem;
+  align-items: stretch;
+  margin-bottom: 1.75rem;
+  /* Sem isso, os itens da grid não encolhem abaixo do conteúdo (o canvas
+     do Chart.js tem largura intrínseca própria) e a fila força um scroll
+     horizontal na página inteira. */
+  min-width: 0;
 }
 
-@media (max-width: 800px) {
-  .linha-controle { grid-template-columns: 1fr; }
+.cartao-grafico--destaque { min-height: 260px; }
+.cartao-grafico--destaque canvas { max-height: 230px; }
+
+@media (max-width: 1100px) {
+  .grade-graficos-controle { grid-template-columns: 1fr 1fr; }
+  .cartao-grafico--destaque { grid-column: 1 / -1; }
 }
+
+@media (max-width: 700px) {
+  .grade-graficos-controle { grid-template-columns: 1fr; }
+  .cartao-grafico--destaque { grid-column: auto; }
+}
+
+.painel--historico { margin-bottom: 1.2em; }
 
 /* ---------- Cards de gráfico (Relatórios e Controle) ---------- */
 
@@ -920,22 +1681,24 @@ button, input, select {
 }
 
 .cartao-grafico {
-  background: var(--papel-cartao);
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio);
-  padding: 1rem;
-  min-height: 260px;
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-lg);
+  padding: 1.1rem;
+  min-height: 220px;
+  min-width: 0;
+  box-shadow: var(--sombra-sm);
 }
 
 .cartao-grafico__titulo {
   font-family: var(--fonte-display);
   font-size: 0.95rem;
-  font-weight: 600;
-  margin: 0 0 0.75rem;
+  font-weight: 700;
+  margin: 0 0 0.85rem;
   text-align: center;
 }
 
-.cartao-grafico canvas { max-height: 220px; }
+.cartao-grafico canvas { max-height: 190px; max-width: 100%; }
 
 /* ---------- Paginação ---------- */
 
@@ -944,13 +1707,14 @@ button, input, select {
   align-items: center;
   justify-content: center;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-top: 1.2rem;
 }
 
 .paginacao__texto {
   font-family: var(--fonte-mono);
   font-size: 0.8rem;
   color: var(--tinta-suave);
+  font-weight: 600;
 }
 
 /* ---------- Modais ---------- */
@@ -958,75 +1722,145 @@ button, input, select {
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(22, 36, 29, 0.35);
+  background: rgba(34, 28, 53, 0.45);
+  backdrop-filter: blur(3px);
   display: grid;
   place-items: center;
   padding: 1rem;
   z-index: 10;
+  animation: entrar-suave var(--transicao) both;
 }
 
 .modal__conteudo {
   width: 100%;
-  max-width: 420px;
-  background: var(--papel-cartao);
-  border-radius: var(--raio);
-  padding: 1.5rem;
-  box-shadow: var(--sombra-cartao);
+  max-width: 440px;
+  background: var(--superficie);
+  border-radius: var(--raio-xl);
+  padding: 1.7rem;
+  box-shadow: var(--sombra-lg);
   max-height: 90vh;
   overflow-y: auto;
+  animation: pop-modal var(--transicao-suave) both;
 }
 
 .modal__acoes {
   display: flex;
   justify-content: flex-end;
   gap: 0.6rem;
-  margin-top: 0.4rem;
+  margin-top: 0.5rem;
 }
 
-.modal__divisor {
+/* ---------- Confirmação (substitui o confirm() nativo do navegador —
+   ver js/confirmar.js) ---------- */
+
+.modal__conteudo--confirmar { max-width: 380px; }
+
+.confirmar__mensagem {
+  margin: 0 0 0.4rem;
+  color: var(--tinta);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* ---------- Wizard de passos (formulário de Plano) ---------- */
+
+.formulario-passo {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: entrar-subindo var(--transicao-suave) both;
+}
+
+.passos-plano {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  margin-bottom: 1.1rem;
+}
+
+.passos-plano__item {
+  display: flex;
+  background: none;
   border: none;
-  border-top: 1px solid var(--linha);
-  margin: 1.25rem 0;
+  padding: 0.2rem;
+  cursor: pointer;
+  transition: opacity var(--transicao);
+}
+.passos-plano__item:disabled { cursor: not-allowed; opacity: 0.45; }
+
+.passos-plano__bolha {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--raio-full);
+  border: 1.5px solid var(--linha-forte);
+  background: var(--superficie-2);
+  color: var(--tinta-suave);
+  font-family: var(--fonte-display);
+  font-weight: 700;
+  font-size: 0.82rem;
+  transition: border-color var(--transicao), background var(--transicao), color var(--transicao), box-shadow var(--transicao);
+}
+
+.passos-plano__linha {
+  flex: 0 0 1.75rem;
+  height: 2px;
+  background: var(--linha-forte);
+  transition: background var(--transicao);
+}
+.passos-plano__linha.is-concluida { background: var(--marca-gradiente-botao); }
+
+.passos-plano__item.is-atual .passos-plano__bolha {
+  border-color: var(--marca);
+  background: var(--marca-suave);
+  color: var(--marca-escura);
+  box-shadow: 0 0 0 4px var(--marca-suave);
+}
+.passos-plano__item.is-concluido .passos-plano__bolha {
+  background: var(--marca-gradiente-botao);
+  border-color: transparent;
+  color: #fff;
 }
 
 /* ---------- Toasts ---------- */
 
 .regiao-toast {
   position: fixed;
-  bottom: 1.25rem;
-  right: 1.25rem;
+  bottom: 1.4rem;
+  right: 1.4rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.55rem;
   z-index: 20;
 }
 
 .toast {
-  background: var(--tinta);
-  color: var(--papel);
-  padding: 0.7rem 1rem;
+  background: var(--toast-fundo);
+  color: #fff;
+  padding: 0.8rem 1.1rem;
   border-radius: var(--raio);
   font-size: 0.85rem;
-  box-shadow: var(--sombra-cartao);
-  animation: toast-entrada var(--transicao) ease;
+  font-weight: 600;
+  box-shadow: var(--sombra-lg);
+  animation: toast-entrada var(--transicao-suave) both;
 }
 
-.toast--erro { background: var(--erro); }
+.toast--erro { background: var(--despesa-forte); }
 
 @keyframes toast-entrada {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 /* ---------- Responsivo ---------- */
 
-/* ---------- Responsivo: tablet (empilha as duas colunas) ---------- */
-
-@media (max-width: 800px) {
+@media (max-width: 900px) {
   .resumo { grid-template-columns: 1fr; }
-  .grid-inicio__linha,
-  .grid-inicio__linha--form { grid-template-columns: 1fr; }
-  .tela-app { padding: 1rem; }
+  .grid-inicio__linha { grid-template-columns: 1fr; }
+  .tela-app { padding: 1.1rem 1.25rem 2rem; }
 }
 
 /* ---------- Responsivo: sidebar vira barra superior fixa no mobile ---------- */
@@ -1041,8 +1875,9 @@ button, input, select {
     flex-direction: row;
     align-items: center;
     z-index: 15;
+    border-radius: 0 0 var(--raio-lg) var(--raio-lg);
   }
-  .sidebar__topo { border-bottom: none; padding: 0.75rem 0.85rem; }
+  .sidebar__topo { padding: 0.75rem 0.9rem; }
   .sidebar__nav {
     flex-direction: row;
     overflow-x: auto;
@@ -1050,40 +1885,38 @@ button, input, select {
     flex: 1;
   }
   .sidebar__link { white-space: nowrap; }
-  .sidebar__rodape { border-top: none; padding: 0.75rem 0.85rem; width: auto; }
-  .sidebar .btn--fantasma { width: auto; }
+  .sidebar__link:hover { transform: none; }
   .sidebar--recolhida { width: 100%; }
   .sidebar--recolhida .sidebar__nav { display: none; }
-  .sidebar--recolhida .sidebar__rodape { display: none; }
 }
 
 /* ---------- Responsivo: celular ----------
-   Alvos de toque maiores (min. 44px, recomendação de acessibilidade),
-   fonte de 16px em inputs (evita o zoom automático que iOS faz em campos
-   com fonte menor que essa), tabela vira lista de "cards"
-   (5 colunas não cabem numa tela de celular)
-   automático que o iOS faz ao focar um input com fonte menor que essa),
-   filtros do histórico empilham em coluna única no mobile. */
+   Alvos de toque maiores (min. 44px), fonte 16px em inputs (evita zoom
+   automático do iOS), tabela vira lista de "cards" empilhados. */
 
 @media (max-width: 600px) {
-  .topo { padding: 0.85rem 1rem; }
+  .topo { padding: 1rem 1.1rem 0.2rem; }
   .topo__nome { font-size: 1.1rem; }
 
-  .tela-app { padding: 0.75rem; }
+  /* Só o avatar cabe ao lado do botão de tema em telas estreitas — nome
+     e seta somem, o dropdown continua funcionando normalmente. */
+  .menu-usuario__botao { padding: 0.4rem; }
+  .menu-usuario__nome, .menu-usuario__seta { display: none; }
+  .menu-usuario__dropdown { min-width: 180px; }
 
-  .cartao-auth { padding: 1.25rem; }
+  .tela-app { padding: 0.9rem 0.9rem 2rem; }
 
-  .painel { padding: 1rem; }
+  .cartao-auth { padding: 1.5rem 1.3rem; }
 
-  /* Toque: botões e campos com altura mínima confortável */
+  .painel { padding: 1.1rem; border-radius: var(--raio); }
+
   .btn { min-height: 44px; }
   .campo input, .campo select {
-    font-size: 16px; /* evita zoom automático do iOS ao focar */
+    font-size: 16px;
     min-height: 44px;
   }
   .aba { min-height: 44px; }
 
-  /* Filtros: cada campo ocupa a largura toda, em vez de tentar caber lado a lado */
   .bloco-filtros { flex-direction: column; align-items: stretch; }
   .campo--compacto { min-width: 0; width: 100%; }
   .bloco-filtros__acoes { width: 100%; }
@@ -1091,51 +1924,49 @@ button, input, select {
 
   .bloco-nova-categoria { flex-direction: column; align-items: stretch; }
 
-  /* Resumo: valores um pouco menores pra não apertar em telas estreitas */
   .resumo__valor { font-size: 1.3rem; }
 
-  /* Tabela -> lista de cards: cada <tr> vira um cartão, cada <td> vira uma
-     linha "rótulo: valor" (o rótulo vem do atributo data-label no HTML). */
   .tabela-historico thead { display: none; }
   .tabela-historico, .tabela-historico tbody, .tabela-historico tr, .tabela-historico td {
     display: block;
     width: 100%;
   }
   .tabela-historico tr {
-    margin-bottom: 0.75rem;
-    border: 1px solid var(--linha-forte);
-    border-radius: var(--raio);
-    padding: 0.7rem 0.85rem;
-    background: var(--papel-cartao);
+    margin-bottom: 0.85rem;
+    border: 1px solid var(--linha);
+    border-radius: var(--raio-lg);
+    padding: 0.85rem 1rem;
+    background: var(--superficie);
+    box-shadow: var(--sombra-sm);
   }
   .tabela-historico tr:last-child { margin-bottom: 0; }
   .tabela-historico td {
-    border: none;
+    border: none !important;
+    background: transparent !important;
     padding: 0.4rem 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
     text-align: right;
+    border-radius: 0 !important;
   }
   .tabela-historico td::before {
     content: attr(data-label);
-    font-weight: 600;
-    font-size: 0.72rem;
+    font-weight: 700;
+    font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--tinta-suave);
     text-align: left;
   }
-  .tabela-historico td[data-label="Ações"] { padding-top: 0.6rem; margin-top: 0.3rem; border-top: 1px solid var(--linha); }
+  .tabela-historico td[data-label="Ações"] { padding-top: 0.7rem; margin-top: 0.4rem; border-top: 1px solid var(--linha) !important; }
   .tabela-historico td[data-label="Ações"]::before { display: none; }
-  .acoes-linha { justify-content: flex-end; gap: 1rem; }
-  .acoes-linha button { padding: 0.4rem 0.2rem; font-size: 0.9rem; }
+  .acoes-linha { justify-content: flex-end; gap: 0.6rem; }
 
-  /* Paginação: evita quebra estranha em telas bem estreitas */
   .paginacao { gap: 0.6rem; flex-wrap: wrap; }
 
   .cartao-conta { flex-wrap: wrap; }
 
-  .modal__conteudo { padding: 1.1rem; }
+  .modal__conteudo { padding: 1.3rem; }
 }

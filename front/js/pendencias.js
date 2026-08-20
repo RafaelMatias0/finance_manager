@@ -151,7 +151,7 @@ function renderizarListaPendencias() {
         const etiquetaClasse = ciclo.status === "atrasada" ? "etiqueta-atrasada" : "etiqueta-a-vencer";
         linha.innerHTML = `
           <span class="${etiquetaClasse}">${formatarVencimento(pendencia, ciclo)}</span>
-          <button type="button" class="link-acao btn-pagar-ciclo">Marcar como paga</button>
+          <button type="button" class="link-acao link-acao--financeira btn-pagar-ciclo">Marcar como paga</button>
         `;
         linha.querySelector(".btn-pagar-ciclo").addEventListener("click", () => abrirModalPagar(pendencia, ciclo));
         listaCiclos.appendChild(linha);
@@ -255,6 +255,7 @@ document.getElementById("form-pendencia").addEventListener("submit", async (even
     corpo.data_vencimento = dados.get("data_vencimento");
   }
 
+  const destravar = travarBotaoEnvio(evento.target);
   try {
     if (id) {
       await Api.editarPendencia(id, corpo);
@@ -267,6 +268,8 @@ document.getElementById("form-pendencia").addEventListener("submit", async (even
     await carregarPendencias();
   } catch (erro) {
     mostrarErro("erro-pendencia", erro.message);
+  } finally {
+    destravar();
   }
 });
 
@@ -281,7 +284,7 @@ async function pausarPendencia(pendencia) {
 }
 
 async function apagarPendencia(pendencia) {
-  const confirmado = confirm(`Apagar a pendência "${pendencia.descricao}"? Isso só é possível se ela não tiver pagamentos vinculados.`);
+  const confirmado = await confirmarAcao(`Apagar a pendência "${pendencia.descricao}"? Isso só é possível se ela não tiver pagamentos vinculados.`);
   if (!confirmado) return;
   try {
     await Api.apagarPendencia(pendencia.id);
@@ -326,6 +329,7 @@ document.getElementById("form-pagar-pendencia").addEventListener("submit", async
   limparErro("erro-pagar-pendencia");
   const dados = new FormData(evento.target);
 
+  const destravar = travarBotaoEnvio(evento.target);
   try {
     await Api.pagarPendencia(cicloEmPagamento.pendencia.id, {
       data_vencimento: dados.get("data_vencimento"),
@@ -339,6 +343,8 @@ document.getElementById("form-pagar-pendencia").addEventListener("submit", async
     toast("Pendência marcada como paga.");
   } catch (erro) {
     mostrarErro("erro-pagar-pendencia", erro.message);
+  } finally {
+    destravar();
   }
 });
 

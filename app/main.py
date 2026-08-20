@@ -22,6 +22,7 @@ from app.security import hash_senha, verificar_senha, criar_access_token, obter_
 from app import relatorios as relatorios_service
 from app import contas as contas_service
 from app import pendencias as pendencias_service
+from app import planos as planos_service
 from app.scheduler import iniciar_scheduler, parar_scheduler
 
 app = FastAPI(title="Gerenciador de Finanças", version="0.4.0")
@@ -84,6 +85,23 @@ def criar_usuario(dados: schemas.UsuarioCreate, db: Session = Depends(get_db)):
 
 @app.get("/usuarios/me", response_model=schemas.UsuarioOut, tags=["usuarios"])
 def meu_usuario(usuario_atual: models.Usuario = Depends(obter_usuario_atual)):
+    return usuario_atual
+
+
+@app.patch("/usuarios/me", response_model=schemas.UsuarioOut, tags=["usuarios"])
+def atualizar_meu_usuario(
+    dados: schemas.UsuarioUpdate,
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    """Só o nome é editável (ver schemas.UsuarioUpdate) — email é a
+    identidade de login e nunca muda por aqui."""
+    campos = dados.model_dump(exclude_unset=True)
+    for campo, valor in campos.items():
+        setattr(usuario_atual, campo, valor)
+
+    db.commit()
+    db.refresh(usuario_atual)
     return usuario_atual
 
 
@@ -509,6 +527,12 @@ def pagar_pendencia(
             detail="Essa data não corresponde a um vencimento pendente dessa pendência",
         )
 
+    # Se essa pendência foi criada por um Plano de "quitar dívida por
+    # parcelas" (ver POST /planos), a Movimentação também grava plano_id
+    # — rastreabilidade pro lado de Planos, sem duplicar a lógica de
+    # pagamento (continua sendo a mesma pendência normal).
+    plano_vinculado = db.query(models.Plano).filter(models.Plano.pendencia_id == pendencia_id).first()
+
     movimentacao = models.Movimentacao(
         valor=dados.valor if dados.valor is not None else pendencia.valor,
         descricao=dados.descricao or pendencia.descricao,
@@ -518,6 +542,7 @@ def pagar_pendencia(
         usuario_id=usuario_atual.id,
         pendencia_id=pendencia.id,
         pendencia_referencia=dados.data_vencimento,
+        plano_id=plano_vinculado.id if plano_vinculado else None,
     )
     db.add(movimentacao)
     try:
@@ -525,6 +550,178 @@ def pagar_pendencia(
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Esse vencimento já foi pago")
+    db.refresh(movimentacao)
+    return movimentacao
+
+
+# ---------- Plano ----------
+
+def _plano_out(plano: models.Plano, progresso: dict) -> schemas.PlanoOut:
+    return schemas.PlanoOut(
+        id=plano.id,
+        usuario_id=plano.usuario_id,
+        nome=plano.nome,
+        tipo=plano.tipo,
+        conta_id=plano.conta_id,
+        mes_inicio=plano.mes_inicio,
+        ativo=plano.ativo,
+        guardar_modo=plano.guardar_modo,
+        criterio_reducao=plano.criterio_reducao,
+        alvo_percentual=plano.alvo_percentual,
+        alvo_valor_reducao=plano.alvo_valor_reducao,
+        divida_modo=plano.divida_modo,
+        pendencia_id=plano.pendencia_id,
+        valor_alvo=plano.valor_alvo,
+        data_prazo=plano.data_prazo,
+        categoria_id=plano.categoria_id,
+        criado_em=plano.criado_em,
+        progresso=progresso,
+    )
+
+
+@app.get("/planos", response_model=List[schemas.PlanoOut], tags=["planos"])
+def listar_planos(
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    """Planos do usuário logado (guardar dinheiro / quitar dívida), cada
+    um já com `progresso` calculado — nunca guardado, sempre derivado da
+    atividade financeira real (ver app/planos.py)."""
+    itens = planos_service.listar_planos_com_progresso(db, usuario_atual.id)
+    return [_plano_out(item["plano"], item["progresso"]) for item in itens]
+
+
+@app.post("/planos", response_model=schemas.PlanoOut, status_code=status.HTTP_201_CREATED, tags=["planos"])
+def criar_plano(
+    dados: schemas.PlanoCreate,
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    _validar_conta_do_usuario(db, dados.conta_id, usuario_atual.id)
+    if dados.categoria_id:
+        _validar_categoria_do_usuario(db, dados.categoria_id, usuario_atual.id)
+
+    campos = dados.model_dump(exclude={"numero_parcelas", "dia_vencimento"})
+
+    pendencia_id = None
+    if dados.tipo == models.TipoPlano.QUITAR_DIVIDA and dados.divida_modo == models.DividaModo.PARCELAS:
+        # Modo parcelas reaproveita a Pendência recorrente (Fase 3) por
+        # baixo, com numero_parcelas travando o fim — sem duplicar lógica
+        # de ciclos/pagamento. `valor_alvo` na requisição, nesse modo
+        # específico, é o valor DE CADA parcela; o total (guardado no
+        # Plano) é calculado aqui.
+        pendencia = models.Pendencia(
+            usuario_id=usuario_atual.id,
+            descricao=dados.nome,
+            valor=dados.valor_alvo,
+            categoria_id=dados.categoria_id,
+            conta_id=dados.conta_id,
+            recorrente=True,
+            dia_vencimento=dados.dia_vencimento,
+            numero_parcelas=dados.numero_parcelas,
+        )
+        db.add(pendencia)
+        db.flush()  # pega o id gerado sem fechar a transação
+        pendencia_id = pendencia.id
+        campos["valor_alvo"] = dados.valor_alvo * dados.numero_parcelas
+
+    plano = models.Plano(**campos, usuario_id=usuario_atual.id, pendencia_id=pendencia_id)
+    db.add(plano)
+    db.commit()
+    db.refresh(plano)
+    progresso = planos_service.progresso_do_plano(db, plano)
+    return _plano_out(plano, progresso)
+
+
+@app.patch("/planos/{plano_id}", response_model=schemas.PlanoOut, tags=["planos"])
+def editar_plano(
+    plano_id: uuid.UUID,
+    dados: schemas.PlanoUpdate,
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    plano = db.get(models.Plano, plano_id)
+    if not plano or plano.usuario_id != usuario_atual.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plano não encontrado")
+
+    campos = dados.model_dump(exclude_unset=True)
+    if "conta_id" in campos:
+        _validar_conta_do_usuario(db, campos["conta_id"], usuario_atual.id)
+    if campos.get("categoria_id") is not None:
+        _validar_categoria_do_usuario(db, campos["categoria_id"], usuario_atual.id)
+
+    for campo, valor in campos.items():
+        setattr(plano, campo, valor)
+
+    db.commit()
+    db.refresh(plano)
+    progresso = planos_service.progresso_do_plano(db, plano)
+    return _plano_out(plano, progresso)
+
+
+@app.delete("/planos/{plano_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["planos"])
+def apagar_plano(
+    plano_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    plano = db.get(models.Plano, plano_id)
+    if not plano or plano.usuario_id != usuario_atual.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plano não encontrado")
+
+    pendencia_vinculada_id = plano.pendencia_id
+    db.delete(plano)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Esse plano já tem pagamentos vinculados e não pode ser apagado — pause em vez de apagar (PATCH ativo=false).",
+        )
+
+    # Modo parcelas: se o delete acima não foi bloqueado, o plano não
+    # tinha pagamento — logo a Pendencia que ele criou por baixo também
+    # não tem. Some junto, em vez de ficar órfã na página de Pendências.
+    if pendencia_vinculada_id:
+        pendencia = db.get(models.Pendencia, pendencia_vinculada_id)
+        if pendencia:
+            db.delete(pendencia)
+            db.commit()
+
+
+@app.post("/planos/{plano_id}/aportar", response_model=schemas.MovimentacaoOut, status_code=status.HTTP_201_CREATED, tags=["planos"])
+def aportar_plano(
+    plano_id: uuid.UUID,
+    dados: schemas.PlanoAportarRequest,
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    """Registra um pagamento pra um plano de quitar dívida no modo prazo
+    (pagamentos avulsos, sem ciclo fixo). Parcelas não passam por aqui —
+    usam POST /pendencias/{id}/pagar, com o pendencia_id do plano. Guardar
+    dinheiro não tem rota de aporte nenhuma: não gera movimentação, o
+    progresso vem da atividade financeira normal."""
+    plano = db.get(models.Plano, plano_id)
+    if not plano or plano.usuario_id != usuario_atual.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plano não encontrado")
+    if plano.tipo != models.TipoPlano.QUITAR_DIVIDA or plano.divida_modo != models.DividaModo.PRAZO:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Só planos de quitar dívida no modo prazo aceitam aporte por aqui (parcelas usam POST /pendencias/{id}/pagar)",
+        )
+
+    movimentacao = models.Movimentacao(
+        valor=dados.valor,
+        descricao=dados.descricao or plano.nome,
+        data=dados.data,
+        categoria_id=plano.categoria_id,
+        conta_id=plano.conta_id,
+        usuario_id=usuario_atual.id,
+        plano_id=plano.id,
+    )
+    db.add(movimentacao)
+    db.commit()
     db.refresh(movimentacao)
     return movimentacao
 
@@ -624,6 +821,24 @@ def relatorio_por_categoria(
     if data_inicio and data_fim and data_fim < data_inicio:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="data_fim não pode ser anterior a data_inicio")
     return relatorios_service.resumo_por_categoria(db, usuario_atual.id, data_inicio, data_fim, tipo, meses_recentes)
+
+
+@app.get("/relatorios/saldo-diario-por-conta", tags=["relatorios"])
+def relatorio_saldo_diario_por_conta(
+    dias: int = Query(default=30, ge=1, le=365),
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    """Série diária de saldo de cada conta do usuário logado, nos últimos
+    `dias` dias (hoje incluso) — usada pelo gráfico de linha "balanço
+    diário por conta" em destaque em Controle."""
+    contas = (
+        db.query(models.Conta)
+        .filter(models.Conta.usuario_id == usuario_atual.id)
+        .order_by(models.Conta.criado_em)
+        .all()
+    )
+    return contas_service.calcular_serie_saldo_diaria(db, usuario_atual.id, contas, dias)
 
 
 @app.get("/relatorios", response_model=List[schemas.RelatorioOut], tags=["relatorios"])

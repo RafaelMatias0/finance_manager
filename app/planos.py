@@ -20,6 +20,24 @@ from app import contas as contas_service
 from app import pendencias as pendencias_service
 
 
+def _formatar_valor_br(valor) -> str:
+    """R$ 1.234,56 — mesmo formato que formatarMoeda() no front (Intl
+    pt-BR). Sem usar `locale` (depende de configuração do SO): string
+    simples. Usado só na descrição textual do alvo mensal de "reduzir
+    categoria / valor fixo" (progresso.meses[].alvo), pra não misturar um
+    número cru (formato en-US) do lado de um valor formatado no mesmo card."""
+    inteiro, decimal = f"{valor:.2f}".split(".")
+    sinal = ""
+    if inteiro.startswith("-"):
+        sinal, inteiro = "-", inteiro[1:]
+    grupos = []
+    while len(inteiro) > 3:
+        grupos.insert(0, inteiro[-3:])
+        inteiro = inteiro[:-3]
+    grupos.insert(0, inteiro)
+    return f"{sinal}R$ {'.'.join(grupos)},{decimal}"
+
+
 def _mes_seguinte(referencia: date) -> date:
     if referencia.month == 12:
         return date(referencia.year + 1, 1, 1)
@@ -146,7 +164,7 @@ def calcular_progresso_reducao_categoria(db: Session, plano: models.Plano, hoje:
             cumpriu = percentual_gasto <= float(plano.alvo_percentual)
         else:
             alvo_mes = baseline_valor - plano.alvo_valor_reducao
-            alvo_descricao = f"até {alvo_mes:.2f}"
+            alvo_descricao = f"até {_formatar_valor_br(alvo_mes)}"
             cumpriu = gasto <= alvo_mes
 
         detalhes.append({

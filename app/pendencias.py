@@ -34,13 +34,19 @@ def _data_vencimento_do_mes(ano: int, mes: int, dia_vencimento: int) -> date:
 def _vencimentos_recorrente(pendencia: models.Pendencia, hoje: date) -> List[date]:
     """Um vencimento por mês, do mês de criação da pendência até o mês
     atual (inclusive) — não gera vencimentos retroativos a antes da
-    pendência existir, nem vencimentos de meses futuros."""
+    pendência existir, nem vencimentos de meses futuros. Se
+    `numero_parcelas` estiver preenchido (pendência criada por um Plano de
+    "quitar dívida por parcelas"), para de gerar depois desse tanto de
+    meses, mesmo que o mês atual já tenha passado disso — a dívida "acaba"
+    depois da última parcela, não vira uma cobrança indefinida."""
     inicio = pendencia.criado_em.date().replace(day=1)
     fim = hoje.replace(day=1)
 
     vencimentos = []
     ano, mes = inicio.year, inicio.month
     while (ano, mes) <= (fim.year, fim.month):
+        if pendencia.numero_parcelas and len(vencimentos) >= pendencia.numero_parcelas:
+            break
         vencimentos.append(_data_vencimento_do_mes(ano, mes, pendencia.dia_vencimento))
         if mes == 12:
             ano, mes = ano + 1, 1

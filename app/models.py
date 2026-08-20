@@ -22,6 +22,11 @@ Estrutura:
   Movimentacao.pendencia_id) a um vencimento (Movimentacao.
   pendencia_referencia) específico — mesmo princípio de "nada calculável
   vira tabela própria" já usado pro saldo.
+- Plano: meta de "guardar dinheiro" (simples, ou reduzindo gasto numa
+  categoria) ou "quitar dívida" (por prazo livre, ou por parcelas — que
+  reaproveita Pendencia por baixo, com `numero_parcelas` limitando a
+  geração de ciclos). Assim como saldo e pendência, o progresso nunca é
+  guardado — é sempre calculado (ver app/planos.py).
 """
 import enum
 import uuid
@@ -55,6 +60,26 @@ class TipoRelatorio(str, enum.Enum):
     AUTOMATICO_MENSAL = "automatico_mensal"
 
 
+class TipoPlano(str, enum.Enum):
+    GUARDAR_DINHEIRO = "guardar_dinheiro"
+    QUITAR_DIVIDA = "quitar_divida"
+
+
+class GuardarModo(str, enum.Enum):
+    SIMPLES = "simples"
+    REDUCAO_CATEGORIA = "reducao_categoria"
+
+
+class CriterioReducao(str, enum.Enum):
+    PERCENTUAL_RECEITA = "percentual_receita"
+    VALOR_FIXO = "valor_fixo"
+
+
+class DividaModo(str, enum.Enum):
+    PRAZO = "prazo"
+    PARCELAS = "parcelas"
+
+
 class Usuario(Base):
     __tablename__ = "usuarios"
 
@@ -81,6 +106,9 @@ class Usuario(Base):
     )
     pendencias = relationship(
         "Pendencia", back_populates="usuario", cascade="all, delete-orphan"
+    )
+    planos = relationship(
+        "Plano", back_populates="usuario", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
@@ -181,6 +209,16 @@ class Movimentacao(Base):
     )
     pendencia_referencia = Column(Date, nullable=True)
 
+    # Preenchido quando esta movimentação é um pagamento de um Plano de
+    # "quitar dívida" — direto no modo "prazo" (POST /planos/{id}/aportar);
+    # indireto no modo "parcelas" (POST /pendencias/{id}/pagar também
+    # grava aqui, se a pendência pertencer a um plano). Nunca preenchido
+    # em planos de "guardar dinheiro" — esses não geram movimentação
+    # nenhuma, o progresso é derivado da atividade financeira normal.
+    plano_id = Column(
+        UUID(as_uuid=True), ForeignKey("planos.id", ondelete="RESTRICT"), nullable=True
+    )
+
     criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
     atualizado_em = Column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
@@ -190,6 +228,7 @@ class Movimentacao(Base):
     categoria = relationship("Categoria", back_populates="movimentacoes")
     conta = relationship("Conta", back_populates="movimentacoes")
     pendencia = relationship("Pendencia", back_populates="pagamentos")
+    plano = relationship("Plano", back_populates="pagamentos")
 
     __table_args__ = (
         # Trava contra pagar o mesmo vencimento duas vezes — só se aplica
@@ -271,6 +310,11 @@ class Pendencia(Base):
     # dia_vencimento (1-31) se recorrente, data_vencimento se avulsa.
     dia_vencimento = Column(Integer, nullable=True)
     data_vencimento = Column(Date, nullable=True)
+    # Nulo = recorrente sem fim definido (aluguel, assinatura). Preenchido
+    # = número máximo de ocorrências a gerar (usado por Plano em modo
+    # "quitar dívida por parcelas", que cria uma Pendencia recorrente com
+    # teto em vez de indefinida — ver app/planos.py).
+    numero_parcelas = Column(Integer, nullable=True)
     # Permite "pausar" uma recorrente (ex: assinatura cancelada) sem
     # apagar — apagar exigiria não ter nenhum pagamento no histórico.
     ativa = Column(Boolean, nullable=False, default=True)
@@ -292,6 +336,91 @@ class Pendencia(Base):
 
     def __repr__(self) -> str:
         return f"<Pendencia id={self.id} descricao={self.descricao} recorrente={self.recorrente}>"
+
+
+class Plano(Base):
+    """Meta de "guardar dinheiro" ou "quitar dívida". Progresso nunca é
+    guardado — sempre calculado (ver app/planos.py). Um único conjunto de
+    colunas cobre os dois tipos e suas submodalidades (campos que não se
+    aplicam ficam nulos); a combinação certa é validada na camada de
+    schema, não aqui:
+
+    - guardar_dinheiro/simples: valor_alvo + data_prazo. Progresso = saldo
+      da conta hoje − saldo da conta em mes_inicio. Não gera Movimentacao.
+    - guardar_dinheiro/reducao_categoria: categoria_id + criterio_reducao
+      (+ alvo_percentual ou alvo_valor_reducao) + data_prazo. Progresso é
+      mês a mês (gasto real vs. alvo). Não gera Movimentacao.
+    - quitar_divida/prazo: valor_alvo + data_prazo + categoria_id.
+      Progresso = soma de Movimentacao.valor com plano_id==este.
+    - quitar_divida/parcelas: valor_alvo (= parcela × numero_parcelas) +
+      categoria_id + pendencia_id (a Pendencia recorrente com
+      numero_parcelas que este plano criou e gerencia). Sem data_prazo —
+      quem define o fim é o número de parcelas.
+    """
+
+    __tablename__ = "planos"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    usuario_id = Column(
+        UUID(as_uuid=True), ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+    )
+    nome = Column(String(120), nullable=False)
+    tipo = Column(
+        SAEnum(TipoPlano, name="tipo_plano", values_callable=lambda e: [x.value for x in e]),
+        nullable=False,
+    )
+    # Conta é fixa pro plano inteiro (ao contrário de Pendencia, onde a
+    # conta é escolhida a cada pagamento) — é ela quem define o progresso
+    # de "guardar dinheiro" e de onde saem os pagamentos de "quitar dívida".
+    conta_id = Column(
+        UUID(as_uuid=True), ForeignKey("contas.id", ondelete="RESTRICT"), nullable=False
+    )
+    mes_inicio = Column(Date, nullable=False)
+    ativo = Column(Boolean, nullable=False, default=True)
+
+    # ---- guardar_dinheiro ----
+    guardar_modo = Column(
+        SAEnum(GuardarModo, name="guardar_modo", values_callable=lambda e: [x.value for x in e]),
+        nullable=True,
+    )
+    criterio_reducao = Column(
+        SAEnum(CriterioReducao, name="criterio_reducao", values_callable=lambda e: [x.value for x in e]),
+        nullable=True,
+    )
+    alvo_percentual = Column(Numeric(5, 2), nullable=True)
+    alvo_valor_reducao = Column(Numeric(12, 2), nullable=True)
+
+    # ---- quitar_divida ----
+    divida_modo = Column(
+        SAEnum(DividaModo, name="divida_modo", values_callable=lambda e: [x.value for x in e]),
+        nullable=True,
+    )
+    pendencia_id = Column(
+        UUID(as_uuid=True), ForeignKey("pendencias.id", ondelete="RESTRICT"), nullable=True
+    )
+
+    # ---- compartilhados entre guardar_dinheiro e quitar_divida/prazo ----
+    valor_alvo = Column(Numeric(12, 2), nullable=True)
+    data_prazo = Column(Date, nullable=True)
+    categoria_id = Column(
+        UUID(as_uuid=True), ForeignKey("categorias.id", ondelete="RESTRICT"), nullable=True
+    )
+
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+    atualizado_em = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    usuario = relationship("Usuario", back_populates="planos")
+    conta = relationship("Conta", foreign_keys=[conta_id])
+    categoria = relationship("Categoria", foreign_keys=[categoria_id])
+    pendencia = relationship("Pendencia", foreign_keys=[pendencia_id])
+    # passive_deletes=True: mesmo motivo de Pendencia.pagamentos — deixa o
+    # RESTRICT do banco barrar apagar um plano com pagamentos já feitos.
+    pagamentos = relationship("Movimentacao", back_populates="plano", passive_deletes=True)
+
+    def __repr__(self) -> str:
+        return f"<Plano id={self.id} nome={self.nome} tipo={self.tipo}>"
 
 
 class Relatorio(Base):

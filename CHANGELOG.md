@@ -1,5 +1,41 @@
 # Changelog
 
+## v2.4.0 — Fase 4: Planos e Metas
+
+- **Planos** (`Plano`): dois tipos, cada um com duas submodalidades.
+  - **Guardar dinheiro** — nunca gera Movimentação; progresso vem da
+    atividade financeira real. *Simples*: acumular um valor até uma
+    data, progresso = crescimento do saldo da conta desde o início.
+    *Redução de categoria*: cortar gasto numa categoria, avaliado mês a
+    mês contra um alvo (percentual da receita do mês, ou valor fixo
+    abaixo da média dos 3 meses anteriores ao início — baseline fixo).
+  - **Quitar dívida** — todo pagamento gera despesa de verdade. *Prazo*:
+    valor total + data-alvo, pagamentos avulsos (`POST
+    /planos/{id}/aportar`). *Parcelas*: valor da parcela × número de
+    parcelas — reaproveita a Pendencia recorrente da Fase 3 por baixo
+    (campo novo `numero_parcelas` em `Pendencia`, que trava a geração de
+    ciclos depois de N meses); pagar uma parcela usa a rota de Pendência
+    de sempre (`POST /pendencias/{id}/pagar`), que agora também grava
+    `plano_id` na Movimentação quando a pendência pertence a um plano.
+- **Rotas novas**: `GET/POST/PATCH/DELETE /planos` e `POST
+  /planos/{id}/aportar`. `DELETE` bloqueado (`409`) com pagamentos
+  vinculados; no modo parcelas sem nenhum pagamento, também remove a
+  Pendencia criada por trás (não fica órfã na página de Pendências).
+- **`app/contas.py`**: `calcular_saldo_conta` ganhou parâmetro opcional
+  `ate_data` (saldo "naquele momento", não só o atual) — usado pelo
+  progresso de guardar dinheiro/simples.
+- **Correção**: a primeira versão do cálculo de progresso de "quitar
+  dívida por parcelas" inferia parcelas pagas por subtração
+  (`numero_parcelas − ciclos pendentes`), o que dava errado logo no
+  início do plano (nem todos os N ciclos ainda tinham sido gerados).
+  Corrigido pra contar pagamentos de verdade.
+- **Front-end**: página nova `planos.html` com formulário em cascata
+  (tipo → submodo → campos daquele submodo) e progresso exibido no
+  formato certo pra cada modalidade (barra, checklist mensal, ou lista de
+  parcelas reaproveitando o componente de Pendências); item "Planos e
+  Metas" da sidebar deixou de ser "em breve" em todas as páginas — com
+  isso, não sobra mais nenhum item desabilitado na sidebar.
+
 ## v2.3.0 — Fase 3: Pendências
 
 - **Pendências** (`Pendencia`): contas recorrentes (aluguel, assinaturas
