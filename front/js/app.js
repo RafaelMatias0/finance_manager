@@ -7,6 +7,7 @@
  */
 const estado = {
   categorias: [],
+  subcategorias: [],
   contas: [],
   pendencias: [],
 };
@@ -96,8 +97,10 @@ async function iniciarDashboard() {
   // pra decidir cor/sinal de cada lançamento, e agora também
   // estado.contas.length pra escolher a mensagem de "vazio" certa — não
   // pode rodar em paralelo com nenhum dos dois (senão corre risco de
-  // ainda estarem vazios quando os lançamentos chegarem).
-  await Promise.all([carregarCategorias(), carregarContas()]);
+  // ainda estarem vazios quando os lançamentos chegarem). Subcategorias
+  // entram na mesma leva por conveniência (só alimentam o select do modal
+  // de nova movimentação, que só abre depois disso terminar).
+  await Promise.all([carregarCategorias(), carregarSubcategorias(), carregarContas()]);
   await Promise.all([carregarPendencias(), carregarLancamentosRecentes(), carregarUsuarioAtual()]);
 }
 
@@ -125,33 +128,47 @@ function preencherSelectCategorias() {
       select.appendChild(opt);
     });
   if (valorAtual) select.value = valorAtual;
+
+  // A lista de subcategorias depende de qual categoria ficou selecionada
+  // acima — troca de tipo muda as opções de categoria, então precisa
+  // recalcular subcategoria em seguida (sem isso, ficaria mostrando
+  // subcategorias de uma categoria que não está mais selecionada).
+  preencherSelectSubcategoria();
 }
 
 document.querySelectorAll('input[name="tipo"]').forEach((radio) => {
   radio.addEventListener("change", preencherSelectCategorias);
 });
 
-// ---------- Nova categoria (rápida) ----------
+// ---------- Subcategoria (opcional, depende da categoria escolhida acima —
+// criar categoria/subcategoria nova agora é só em Controle, ver
+// "Gerenciar categorias e subcategorias →" no próprio modal) ----------
 
-document.getElementById("btn-toggle-nova-categoria").addEventListener("click", () => {
-  document.getElementById("bloco-nova-categoria").classList.toggle("oculto");
-});
+async function carregarSubcategorias() {
+  estado.subcategorias = await Api.subcategorias();
+}
 
-document.getElementById("btn-salvar-categoria").addEventListener("click", async () => {
-  const nome = document.getElementById("input-nome-categoria").value.trim();
-  if (!nome) return;
-  const tipo = document.querySelector('input[name="tipo"]:checked').value;
-  try {
-    const nova = await Api.criarCategoria(nome, tipo);
-    await carregarCategorias();
-    document.getElementById("select-categoria").value = nova.id;
-    document.getElementById("input-nome-categoria").value = "";
-    document.getElementById("bloco-nova-categoria").classList.add("oculto");
-    toast(`Categoria "${nova.nome}" criada.`);
-  } catch (erro) {
-    toast(erro.message, "erro");
+function preencherSelectSubcategoria() {
+  const categoriaId = document.getElementById("select-categoria").value;
+  const select = document.getElementById("select-subcategoria");
+  const valorAtual = select.value;
+  select.innerHTML = '<option value="">Nenhuma</option>';
+  estado.subcategorias
+    .filter((s) => s.categoria_id === categoriaId)
+    .forEach((s) => {
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.nome;
+      select.appendChild(opt);
+    });
+  // Só reaplica o valor anterior se ele ainda existir entre as opções
+  // novas — senão fica preso numa subcategoria de outra categoria.
+  if ([...select.options].some((opt) => opt.value === valorAtual)) {
+    select.value = valorAtual;
   }
-});
+}
+
+document.getElementById("select-categoria").addEventListener("change", preencherSelectSubcategoria);
 
 // ---------- Contas bancárias (card compacto, só leitura — criar/editar/
 // apagar conta e transferências agora vivem em contas.html) ----------
@@ -315,7 +332,6 @@ function abrirModalMovimentacao(tipo) {
   form.reset();
   document.querySelector(`#form-movimentacao input[name="tipo"][value="${tipo}"]`).checked = true;
   form.elements["data"].value = hojeISO();
-  document.getElementById("bloco-nova-categoria").classList.add("oculto");
   preencherSelectCategorias();
   preencherSelectsConta();
 
@@ -347,6 +363,7 @@ document.getElementById("form-movimentacao").addEventListener("submit", async (e
   const corpo = {
     valor: dados.get("valor"),
     categoria_id: dados.get("categoria_id"),
+    subcategoria_id: dados.get("subcategoria_id") || null,
     conta_id: dados.get("conta_id"),
     descricao: dados.get("descricao") || null,
     data: dados.get("data"),

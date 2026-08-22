@@ -71,6 +71,22 @@ class CategoriaUpdate(BaseModel):
     tipo: Optional[TipoMovimentacao] = None
 
 
+# ---------- Subcategoria ----------
+
+class SubcategoriaCreate(BaseModel):
+    nome: str = Field(min_length=1, max_length=80)
+    categoria_id: uuid.UUID
+
+
+class SubcategoriaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    nome: str
+    categoria_id: uuid.UUID
+    usuario_id: uuid.UUID
+
+
 # ---------- Conta ----------
 
 class ContaCreate(BaseModel):
@@ -104,6 +120,9 @@ class MovimentacaoCreate(BaseModel):
     descricao: Optional[str] = Field(default=None, max_length=255)
     data: date = Field(default_factory=date.today)
     categoria_id: uuid.UUID
+    # Opcional — se enviada, precisa pertencer a essa mesma categoria_id
+    # (validado na rota, ver _validar_subcategoria_do_usuario).
+    subcategoria_id: Optional[uuid.UUID] = None
     conta_id: uuid.UUID
 
 
@@ -113,6 +132,7 @@ class MovimentacaoUpdate(BaseModel):
     descricao: Optional[str] = Field(default=None, max_length=255)
     data: Optional[date] = None
     categoria_id: Optional[uuid.UUID] = None
+    subcategoria_id: Optional[uuid.UUID] = None
     conta_id: Optional[uuid.UUID] = None
 
 
@@ -125,6 +145,7 @@ class MovimentacaoOut(BaseModel):
     data: date
     usuario_id: uuid.UUID
     categoria_id: uuid.UUID
+    subcategoria_id: Optional[uuid.UUID] = None
     conta_id: uuid.UUID
     # Preenchidos só quando a movimentação nasceu de "marcar uma
     # pendência como paga" (POST /pendencias/{id}/pagar) — nulos numa

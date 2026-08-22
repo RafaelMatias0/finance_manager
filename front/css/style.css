@@ -905,17 +905,6 @@ html[data-tema="escuro"] .icone-tema--sol { display: grid; }
   color: var(--marca-escura);
 }
 
-.bloco-nova-categoria {
-  display: flex;
-  gap: 0.6rem;
-  align-items: flex-end;
-  padding: 0.85rem;
-  background: var(--aviso-fundo);
-  border-radius: var(--raio);
-  animation: entrar-subindo var(--transicao) both;
-}
-.bloco-nova-categoria .campo { flex: 1; }
-
 /* ---------- App / conteúdo ---------- */
 
 .tela-app {
@@ -1602,6 +1591,21 @@ html[data-tema="escuro"] .icone-tema--sol { display: grid; }
   color: var(--marca-escura);
 }
 
+/* Subcategoria — mesma forma da etiqueta de categoria, mas sem
+   preenchimento colorido: fica claro que é um refinamento dela, não uma
+   segunda categoria. Usada ao lado da etiqueta-categoria no Histórico. */
+.etiqueta-subcategoria {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--raio-full);
+  border: 1px solid var(--linha-forte);
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--superficie-2);
+  color: var(--tinta-suave);
+}
+
 .etiqueta-conta {
   display: inline-block;
   padding: 0.22rem 0.65rem;
@@ -1682,6 +1686,80 @@ html[data-tema="escuro"] .icone-tema--sol { display: grid; }
 }
 
 .painel--historico { margin-bottom: 1.2em; }
+
+/* ---------- Gerenciar categorias e subcategorias (Controle) ----------
+   Os dois botões de criação ficam alinhados à esquerda (não à direita,
+   como o "Filtros" do Histórico) — aqui são a ação principal do card,
+   não um extra que se recolhe. */
+
+.painel--categorias { margin-bottom: 1.2rem; }
+
+.painel-categorias__acoes {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.1rem;
+}
+
+.lista-categorias-gerenciar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.cartao-categoria {
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-lg);
+  background: var(--superficie);
+  box-shadow: var(--sombra-sm);
+  overflow: hidden;
+  transition: box-shadow var(--transicao);
+}
+.cartao-categoria:hover { box-shadow: var(--sombra); }
+
+.cartao-categoria__cabecalho {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--fonte-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--tinta);
+  transition: background var(--transicao);
+}
+.cartao-categoria__cabecalho:hover { background: var(--superficie-2); }
+
+.cartao-categoria__nome { flex: 1; min-width: 0; }
+
+.cartao-categoria__seta {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+  color: var(--tinta-suave);
+  transition: transform var(--transicao);
+}
+.cartao-categoria__cabecalho[aria-expanded="true"] .cartao-categoria__seta { transform: rotate(180deg); }
+
+.cartao-categoria__subcategorias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0 1.1rem 1rem;
+  animation: entrar-subindo var(--transicao) both;
+}
+
+.cartao-categoria__vazio {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--tinta-suave);
+  font-weight: 600;
+}
 
 /* ---------- Cards de gráfico (Relatórios e Controle) ---------- */
 
@@ -1933,8 +2011,6 @@ html[data-tema="escuro"] .icone-tema--sol { display: grid; }
   .campo--compacto { min-width: 0; width: 100%; }
   .bloco-filtros__acoes { width: 100%; }
   .bloco-filtros__acoes .btn { flex: 1; }
-
-  .bloco-nova-categoria { flex-direction: column; align-items: stretch; }
 
   .resumo__valor { font-size: 1.3rem; }
 

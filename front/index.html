@@ -234,15 +234,14 @@
         <select name="categoria_id" id="select-categoria" required></select>
       </label>
 
-      <button type="button" id="btn-toggle-nova-categoria" class="link-acao link-acao--alternar">+ nova categoria</button>
+      <label class="campo">
+        <span>Subcategoria (opcional)</span>
+        <select name="subcategoria_id" id="select-subcategoria">
+          <option value="">Nenhuma</option>
+        </select>
+      </label>
 
-      <div id="bloco-nova-categoria" class="bloco-nova-categoria oculto">
-        <label class="campo">
-          <span>Nome da categoria</span>
-          <input type="text" id="input-nome-categoria" maxlength="80" placeholder="Ex: Freelas" />
-        </label>
-        <button type="button" id="btn-salvar-categoria" class="btn btn--secundario btn--pequeno">Salvar categoria</button>
-      </div>
+      <a href="controle.html" class="link-acao link-acao--navegacao">Gerenciar categorias e subcategorias →</a>
 
       <label class="campo">
         <span>Conta</span>

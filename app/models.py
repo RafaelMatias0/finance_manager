@@ -6,6 +6,13 @@ Estrutura:
 - Categoria: classifica as movimentações (ex: Salário, Alimentação),
   vinculada a um tipo (receita/despesa) e opcionalmente a um usuário
   (categorias podem ser globais/padrão ou criadas pelo próprio usuário).
+- Subcategoria: refinamento opcional de uma Categoria (ex: "Mercado" e
+  "Restaurante" dentro de "Alimentação"). Sempre pertence a um usuário
+  (não existe subcategoria global/padrão) e a uma única Categoria — sem
+  campo `tipo` próprio, que é sempre `subcategoria.categoria.tipo` (mesmo
+  princípio de não duplicar o que já dá pra derivar). Uma movimentação
+  pode ou não ter subcategoria, mas se tiver, precisa bater com a
+  categoria escolhida (validado na camada de rota).
 - Conta: registro "de visão" de uma conta bancária do usuário (nome do
   banco + apelido opcional + saldo inicial) — sem qualquer integração
   real com instituições financeiras.
@@ -95,6 +102,9 @@ class Usuario(Base):
     categorias = relationship(
         "Categoria", back_populates="usuario", cascade="all, delete-orphan"
     )
+    subcategorias = relationship(
+        "Subcategoria", back_populates="usuario", cascade="all, delete-orphan"
+    )
     movimentacoes = relationship(
         "Movimentacao", back_populates="usuario", cascade="all, delete-orphan"
     )
@@ -145,9 +155,41 @@ class Categoria(Base):
     # a coluna é NOT NULL (faz a mesma coisa dar errado por outro
     # motivo). Ver Pendencia.pagamentos, onde isso quebrava de verdade.
     movimentacoes = relationship("Movimentacao", back_populates="categoria", passive_deletes=True)
+    # passive_deletes=True: mesmo raciocínio de movimentacoes acima — o
+    # RESTRICT do banco barra apagar uma categoria que ainda tem
+    # subcategoria vinculada, em vez do SQLAlchemy tentar desvincular.
+    subcategorias = relationship("Subcategoria", back_populates="categoria", passive_deletes=True)
 
     def __repr__(self) -> str:
         return f"<Categoria id={self.id} nome={self.nome} tipo={self.tipo}>"
+
+
+class Subcategoria(Base):
+    """Refinamento opcional de uma Categoria — ver docstring do módulo.
+    Sempre pertence a um usuário (ao contrário de Categoria, não existe
+    subcategoria global/padrão pré-cadastrada)."""
+
+    __tablename__ = "subcategorias"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    nome = Column(String(80), nullable=False)
+    categoria_id = Column(
+        UUID(as_uuid=True), ForeignKey("categorias.id", ondelete="RESTRICT"), nullable=False
+    )
+    usuario_id = Column(
+        UUID(as_uuid=True), ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+    )
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    categoria = relationship("Categoria", back_populates="subcategorias")
+    usuario = relationship("Usuario", back_populates="subcategorias")
+    # passive_deletes=True: mesmo motivo de Categoria.movimentacoes — deixa
+    # o RESTRICT do banco barrar apagar uma subcategoria com movimentações
+    # vinculadas.
+    movimentacoes = relationship("Movimentacao", back_populates="subcategoria", passive_deletes=True)
+
+    def __repr__(self) -> str:
+        return f"<Subcategoria id={self.id} nome={self.nome} categoria_id={self.categoria_id}>"
 
 
 class Conta(Base):
@@ -190,6 +232,12 @@ class Movimentacao(Base):
     categoria_id = Column(
         UUID(as_uuid=True), ForeignKey("categorias.id", ondelete="RESTRICT"), nullable=False
     )
+    # Opcional — refinamento da categoria acima (ver Subcategoria). Se
+    # preenchida, tem que pertencer à mesma categoria_id desta movimentação
+    # (validado na rota, não no banco).
+    subcategoria_id = Column(
+        UUID(as_uuid=True), ForeignKey("subcategorias.id", ondelete="RESTRICT"), nullable=True
+    )
     # RESTRICT: apagar uma conta com histórico teria que apagar/realocar
     # movimentações primeiro — evita perder histórico silenciosamente,
     # mesma lógica já usada em categoria_id.
@@ -226,6 +274,7 @@ class Movimentacao(Base):
 
     usuario = relationship("Usuario", back_populates="movimentacoes")
     categoria = relationship("Categoria", back_populates="movimentacoes")
+    subcategoria = relationship("Subcategoria", back_populates="movimentacoes")
     conta = relationship("Conta", back_populates="movimentacoes")
     pendencia = relationship("Pendencia", back_populates="pagamentos")
     plano = relationship("Plano", back_populates="pagamentos")

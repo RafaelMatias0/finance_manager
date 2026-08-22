@@ -158,6 +158,39 @@ def editar_categoria(
     return categoria
 
 
+# ---------- Subcategoria ----------
+
+@app.get("/subcategorias", response_model=List[schemas.SubcategoriaOut], tags=["subcategorias"])
+def listar_subcategorias(
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    """Todas as subcategorias do usuário logado (não existe subcategoria
+    global/padrão — ao contrário de categoria). O front filtra client-side
+    por categoria_id, mesmo padrão já usado em GET /categorias."""
+    return (
+        db.query(models.Subcategoria)
+        .filter(models.Subcategoria.usuario_id == usuario_atual.id)
+        .order_by(models.Subcategoria.nome)
+        .all()
+    )
+
+
+@app.post("/subcategorias", response_model=schemas.SubcategoriaOut, status_code=status.HTTP_201_CREATED, tags=["subcategorias"])
+def criar_subcategoria(
+    dados: schemas.SubcategoriaCreate,
+    db: Session = Depends(get_db),
+    usuario_atual: models.Usuario = Depends(obter_usuario_atual),
+):
+    _validar_categoria_do_usuario(db, dados.categoria_id, usuario_atual.id)
+
+    subcategoria = models.Subcategoria(**dados.model_dump(), usuario_id=usuario_atual.id)
+    db.add(subcategoria)
+    db.commit()
+    db.refresh(subcategoria)
+    return subcategoria
+
+
 # ---------- Conta ----------
 
 def _validar_conta_do_usuario(db: Session, conta_id: uuid.UUID, usuario_id: uuid.UUID) -> models.Conta:
@@ -272,6 +305,23 @@ def _validar_categoria_do_usuario(db: Session, categoria_id: uuid.UUID, usuario_
     return categoria
 
 
+def _validar_subcategoria_do_usuario(
+    db: Session, subcategoria_id: uuid.UUID, categoria_id: uuid.UUID, usuario_id: uuid.UUID
+) -> models.Subcategoria:
+    """Confere que a subcategoria existe, é do usuário logado (subcategoria
+    nunca é global) e pertence à categoria_id informada — uma subcategoria
+    de "Alimentação" não pode ser usada numa movimentação de "Transporte"."""
+    subcategoria = db.get(models.Subcategoria, subcategoria_id)
+    if not subcategoria or subcategoria.usuario_id != usuario_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subcategoria não encontrada")
+    if subcategoria.categoria_id != categoria_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Essa subcategoria não pertence à categoria selecionada",
+        )
+    return subcategoria
+
+
 @app.post("/movimentacoes", response_model=schemas.MovimentacaoOut, status_code=status.HTTP_201_CREATED, tags=["movimentacoes"])
 def criar_movimentacao(
     dados: schemas.MovimentacaoCreate,
@@ -280,6 +330,8 @@ def criar_movimentacao(
 ):
     _validar_categoria_do_usuario(db, dados.categoria_id, usuario_atual.id)
     _validar_conta_do_usuario(db, dados.conta_id, usuario_atual.id)
+    if dados.subcategoria_id is not None:
+        _validar_subcategoria_do_usuario(db, dados.subcategoria_id, dados.categoria_id, usuario_atual.id)
 
     movimentacao = models.Movimentacao(**dados.model_dump(), usuario_id=usuario_atual.id)
     db.add(movimentacao)
@@ -345,6 +397,11 @@ def atualizar_movimentacao(
         _validar_categoria_do_usuario(db, campos["categoria_id"], usuario_atual.id)
     if "conta_id" in campos:
         _validar_conta_do_usuario(db, campos["conta_id"], usuario_atual.id)
+    if campos.get("subcategoria_id") is not None:
+        # A categoria "efetiva" pode vir deste mesmo PATCH ou, se não foi
+        # enviada agora, é a que a movimentação já tinha.
+        categoria_id_efetiva = campos.get("categoria_id", movimentacao.categoria_id)
+        _validar_subcategoria_do_usuario(db, campos["subcategoria_id"], categoria_id_efetiva, usuario_atual.id)
 
     for campo, valor in campos.items():
         setattr(movimentacao, campo, valor)

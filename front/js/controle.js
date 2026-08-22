@@ -20,6 +20,7 @@ document.addEventListener("sessao-expirada", () => {
 // ela é compartilhada entre todas as páginas logadas).
 
 let categorias = [];
+let subcategorias = [];
 let contas = [];
 
 const estado = {
@@ -33,11 +34,17 @@ function categoriaPorId(id) {
   return categorias.find((c) => c.id === id);
 }
 
+function subcategoriaPorId(id) {
+  return subcategorias.find((s) => s.id === id);
+}
+
 function contaPorId(id) {
   return contas.find((c) => c.id === id);
 }
 
-// ---------- Categorias / Contas (só pra popular selects — sem CRUD aqui) ----------
+// ---------- Categorias / Subcategorias / Contas (popular selects + o
+// card de gerenciar categorias — CRUD de categoria/subcategoria mora
+// só aqui, na Fase 6) ----------
 
 async function carregarCategorias() {
   categorias = await Api.categorias();
@@ -66,7 +73,46 @@ function preencherSelectsCategoria() {
     filtroCategoria.appendChild(opt);
   });
   filtroCategoria.value = valorFiltroAtual;
+
+  const selectRelacionada = document.getElementById("select-categoria-relacionada");
+  const valorRelacionadaAtual = selectRelacionada.value;
+  selectRelacionada.innerHTML = "";
+  categorias.forEach((c) => {
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = `${c.nome} (${c.tipo})`;
+    selectRelacionada.appendChild(opt);
+  });
+  if (valorRelacionadaAtual) selectRelacionada.value = valorRelacionadaAtual;
 }
+
+async function carregarSubcategorias() {
+  subcategorias = await Api.subcategorias();
+  preencherSelectSubcategoriaEdicao();
+}
+
+// Select de subcategoria do modal de edição — depende de qual categoria
+// está selecionada ali (mesmo princípio do modal de nova movimentação
+// no Início: só mostra subcategorias da categoria escolhida).
+function preencherSelectSubcategoriaEdicao() {
+  const categoriaId = document.getElementById("select-categoria-edicao").value;
+  const select = document.getElementById("select-subcategoria-edicao");
+  const valorAtual = select.value;
+  select.innerHTML = '<option value="">Nenhuma</option>';
+  subcategorias
+    .filter((s) => s.categoria_id === categoriaId)
+    .forEach((s) => {
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.nome;
+      select.appendChild(opt);
+    });
+  if ([...select.options].some((opt) => opt.value === valorAtual)) {
+    select.value = valorAtual;
+  }
+}
+
+document.getElementById("select-categoria-edicao").addEventListener("change", preencherSelectSubcategoriaEdicao);
 
 async function carregarContas() {
   contas = await Api.contas();
@@ -156,6 +202,7 @@ function renderizarHistorico(itens) {
 
   itens.forEach((mov) => {
     const categoria = categoriaPorId(mov.categoria_id);
+    const subcategoria = mov.subcategoria_id ? subcategoriaPorId(mov.subcategoria_id) : null;
     const conta = contaPorId(mov.conta_id);
     const tr = document.createElement("tr");
 
@@ -165,7 +212,10 @@ function renderizarHistorico(itens) {
     tr.innerHTML = `
       <td data-label="Data">${formatarDataBR(mov.data)}</td>
       <td data-label="Descrição">${mov.descricao ? escaparHtml(mov.descricao) : '<span style="color:var(--tinta-suave)">—</span>'}</td>
-      <td data-label="Categoria"><span class="etiqueta-categoria">${escaparHtml(categoria?.nome ?? "—")}</span></td>
+      <td data-label="Categoria">
+        <span class="etiqueta-categoria">${escaparHtml(categoria?.nome ?? "—")}</span>
+        ${subcategoria ? `<span class="etiqueta-subcategoria">${escaparHtml(subcategoria.nome)}</span>` : ""}
+      </td>
       <td data-label="Conta"><span class="etiqueta-conta">${escaparHtml(conta?.nome_banco ?? "—")}</span></td>
       <td data-label="Valor" class="alinhar-direita celula-valor ${classeValor}">${sinal} ${formatarMoeda(mov.valor)}</td>
       <td data-label="Ações">
@@ -231,6 +281,10 @@ function abrirModalEdicao(mov) {
 
   const selectCategoria = document.getElementById("select-categoria-edicao");
   selectCategoria.value = mov.categoria_id;
+  // Categoria já vem certa acima — só falta recalcular as opções de
+  // subcategoria pra ela antes de aplicar o valor salvo da movimentação.
+  preencherSelectSubcategoriaEdicao();
+  document.getElementById("select-subcategoria-edicao").value = mov.subcategoria_id ?? "";
 
   const selectConta = document.getElementById("select-conta-edicao");
   selectConta.value = mov.conta_id;
@@ -259,6 +313,7 @@ document.getElementById("form-edicao").addEventListener("submit", async (evento)
     await Api.editarMovimentacao(dados.get("id"), {
       valor: dados.get("valor"),
       categoria_id: dados.get("categoria_id"),
+      subcategoria_id: dados.get("subcategoria_id") || null,
       conta_id: dados.get("conta_id"),
       descricao: dados.get("descricao") || null,
       data: dados.get("data"),
@@ -268,6 +323,122 @@ document.getElementById("form-edicao").addEventListener("submit", async (evento)
     toast("Movimentação atualizada.");
   } catch (erro) {
     mostrarErro("erro-edicao", erro.message);
+  } finally {
+    destravar();
+  }
+});
+
+// ---------- Gerenciar categorias e subcategorias (card dedicado, entre
+// Histórico e Resumo por categoria — antes, criar categoria vivia
+// embutido no form de nova movimentação do Início; agora mora só aqui,
+// e subcategoria nasce junto nesta mesma Fase) ----------
+
+// Categoria com a lista de subcategorias aberta no momento (só uma por
+// vez) — null quando nenhuma está expandida.
+let categoriaExpandidaId = null;
+
+function renderizarListaCategoriasGerenciar() {
+  const lista = document.getElementById("lista-categorias-gerenciar");
+  const vazio = document.getElementById("categorias-gerenciar-vazio");
+  lista.innerHTML = "";
+
+  if (categorias.length === 0) {
+    vazio.classList.remove("oculto");
+    return;
+  }
+  vazio.classList.add("oculto");
+
+  categorias.forEach((cat) => {
+    const subcategoriasDaCategoria = subcategorias.filter((s) => s.categoria_id === cat.id);
+    const expandida = categoriaExpandidaId === cat.id;
+
+    const tipoClasse = cat.tipo === "despesa" ? "etiqueta-tipo-despesa" : "etiqueta-tipo-receita";
+    const tipoRotulo = cat.tipo === "despesa" ? "Despesa" : "Receita";
+    const conteudoSubcategorias = subcategoriasDaCategoria.length > 0
+      ? subcategoriasDaCategoria.map((s) => `<span class="etiqueta-categoria">${escaparHtml(s.nome)}</span>`).join("")
+      : '<p class="cartao-categoria__vazio">Nenhuma subcategoria ainda.</p>';
+
+    const div = document.createElement("div");
+    div.className = "cartao-categoria";
+    div.innerHTML = `
+      <button type="button" class="cartao-categoria__cabecalho" aria-expanded="${expandida}">
+        <span class="${tipoClasse}">${tipoRotulo}</span>
+        <span class="cartao-categoria__nome">${escaparHtml(cat.nome)}</span>
+        <svg class="cartao-categoria__seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="cartao-categoria__subcategorias ${expandida ? "" : "oculto"}">${conteudoSubcategorias}</div>
+    `;
+    div.querySelector(".cartao-categoria__cabecalho").addEventListener("click", () => {
+      categoriaExpandidaId = expandida ? null : cat.id;
+      renderizarListaCategoriasGerenciar();
+    });
+    lista.appendChild(div);
+  });
+}
+
+// Um único modal cobre os dois formulários ("Nova categoria" e "Nova
+// subcategoria") — o botão clicado já diz qual dos dois é, então não
+// precisa de um passo extra só pra escolher o modo.
+let modoCriacaoCategoria = "categoria";
+
+function abrirModalCategoria(modo) {
+  modoCriacaoCategoria = modo;
+  limparErro("erro-categoria");
+  const form = document.getElementById("form-categoria");
+  form.reset();
+
+  const ehSubcategoria = modo === "subcategoria";
+  document.getElementById("titulo-modal-categoria").textContent = ehSubcategoria ? "Nova subcategoria" : "Nova categoria";
+  document.getElementById("rotulo-nome-categoria").textContent = ehSubcategoria ? "Nome da subcategoria" : "Nome da categoria";
+  document.getElementById("campo-categoria-relacionada").classList.toggle("oculto", !ehSubcategoria);
+  document.getElementById("campo-tipo-categoria").classList.toggle("oculto", ehSubcategoria);
+  document.getElementById("select-categoria-relacionada").required = ehSubcategoria;
+
+  // Se uma categoria já estava expandida no card, pré-seleciona ela como
+  // "categoria relacionada" — poupa um clique no caso mais comum (abrir
+  // uma categoria e, na sequência, criar uma subcategoria pra ela).
+  if (ehSubcategoria && categoriaExpandidaId) {
+    document.getElementById("select-categoria-relacionada").value = categoriaExpandidaId;
+  }
+
+  document.getElementById("modal-categoria").classList.remove("oculto");
+}
+
+function fecharModalCategoria() {
+  document.getElementById("modal-categoria").classList.add("oculto");
+}
+
+document.getElementById("btn-nova-categoria").addEventListener("click", () => abrirModalCategoria("categoria"));
+document.getElementById("btn-nova-subcategoria").addEventListener("click", () => abrirModalCategoria("subcategoria"));
+document.getElementById("btn-cancelar-categoria").addEventListener("click", fecharModalCategoria);
+document.getElementById("modal-categoria").addEventListener("click", (evento) => {
+  if (evento.target.id === "modal-categoria") fecharModalCategoria();
+});
+
+document.getElementById("form-categoria").addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+  limparErro("erro-categoria");
+  const dados = new FormData(evento.target);
+  const nome = dados.get("nome").trim();
+
+  const destravar = travarBotaoEnvio(evento.target);
+  try {
+    if (modoCriacaoCategoria === "subcategoria") {
+      const categoriaRelacionadaId = dados.get("categoria_relacionada_id");
+      const nova = await Api.criarSubcategoria({ nome, categoria_id: categoriaRelacionadaId });
+      await carregarSubcategorias();
+      categoriaExpandidaId = categoriaRelacionadaId;
+      toast(`Subcategoria "${nova.nome}" criada.`);
+    } else {
+      const tipo = dados.get("tipo");
+      const nova = await Api.criarCategoria(nome, tipo);
+      await carregarCategorias();
+      toast(`Categoria "${nova.nome}" criada.`);
+    }
+    fecharModalCategoria();
+    renderizarListaCategoriasGerenciar();
+  } catch (erro) {
+    mostrarErro("erro-categoria", erro.message);
   } finally {
     destravar();
   }
@@ -519,7 +690,8 @@ document.addEventListener("tema-alterado", () => {
 // ---------- Inicialização ----------
 
 (async function iniciar() {
-  await Promise.all([carregarCategorias(), carregarContas()]);
+  await Promise.all([carregarCategorias(), carregarSubcategorias(), carregarContas()]);
+  renderizarListaCategoriasGerenciar();
   await Promise.all([
     carregarHistorico(),
     carregarGraficoSaldoDiario(),

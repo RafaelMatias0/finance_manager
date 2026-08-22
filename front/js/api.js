@@ -107,6 +107,12 @@ const Api = {
   criarCategoria(nome, tipo) {
     return requisitar("POST", "/categorias", { body: { nome, tipo } });
   },
+  subcategorias() {
+    return requisitar("GET", "/subcategorias");
+  },
+  criarSubcategoria(dados) {
+    return requisitar("POST", "/subcategorias", { body: dados });
+  },
   historico(filtros) {
     return requisitar("GET", "/movimentacoes", { query: filtros });
   },

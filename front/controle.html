@@ -205,6 +205,17 @@
         </div>
       </section>
 
+      <section class="painel painel--categorias" aria-label="Categorias e subcategorias">
+        <h2 class="painel__titulo">Categorias e subcategorias</h2>
+        <div class="painel-categorias__acoes">
+          <button type="button" id="btn-nova-categoria" class="link-acao">+ nova categoria</button>
+          <button type="button" id="btn-nova-subcategoria" class="link-acao">+ nova subcategoria</button>
+        </div>
+
+        <div id="lista-categorias-gerenciar" class="lista-categorias-gerenciar"></div>
+        <p id="categorias-gerenciar-vazio" class="estado-vazio oculto">Nenhuma categoria cadastrada ainda.</p>
+      </section>
+
       <section class="painel painel--resumo-categorias" aria-label="Resumo por categoria">
         <h2 class="painel__titulo">Resumo por categoria</h2>
         <div class="tabela-scroll">
@@ -247,6 +258,12 @@
         <select name="categoria_id" id="select-categoria-edicao" required></select>
       </label>
       <label class="campo">
+        <span>Subcategoria (opcional)</span>
+        <select name="subcategoria_id" id="select-subcategoria-edicao">
+          <option value="">Nenhuma</option>
+        </select>
+      </label>
+      <label class="campo">
         <span>Conta</span>
         <select name="conta_id" id="select-conta-edicao" required></select>
       </label>
@@ -261,6 +278,41 @@
       <div class="modal__acoes">
         <button type="button" id="btn-cancelar-edicao" class="btn btn--fantasma">Cancelar</button>
         <button type="submit" class="btn btn--principal">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="modal-categoria" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-categoria">
+  <div class="modal__conteudo">
+    <h2 class="painel__titulo" id="titulo-modal-categoria">Nova categoria</h2>
+    <form id="form-categoria" class="formulario">
+      <p class="erro-formulario" id="erro-categoria" role="alert"></p>
+
+      <label class="campo" id="campo-categoria-relacionada">
+        <span>Categoria relacionada</span>
+        <select name="categoria_relacionada_id" id="select-categoria-relacionada"></select>
+      </label>
+
+      <label class="campo">
+        <span id="rotulo-nome-categoria">Nome da categoria</span>
+        <input type="text" name="nome" id="input-nome-categoria-form" maxlength="80" required placeholder="Ex: Freelas" />
+      </label>
+
+      <div class="campo-grupo-tipo" id="campo-tipo-categoria" role="radiogroup" aria-label="Tipo">
+        <label class="opcao-tipo">
+          <input type="radio" name="tipo" value="receita" checked />
+          <span>Receita</span>
+        </label>
+        <label class="opcao-tipo">
+          <input type="radio" name="tipo" value="despesa" />
+          <span>Despesa</span>
+        </label>
+      </div>
+
+      <div class="modal__acoes">
+        <button type="button" id="btn-cancelar-categoria" class="btn btn--fantasma">Cancelar</button>
+        <button type="submit" class="btn btn--principal">Criar</button>
       </div>
     </form>
   </div>
